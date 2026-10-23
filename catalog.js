@@ -20,6 +20,8 @@
 //   price         integer rupees
 //   description   shown on the product page
 //   image         path relative to the site root
+//   hoverImage    optional second photo shown when a product card is hovered;
+//                 falls back to a zoomed crop of `image` when omitted
 //   available     false hides the item from the shop grid
 // ============================================================================
 

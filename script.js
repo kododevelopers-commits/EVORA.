@@ -38,8 +38,12 @@ document.addEventListener('DOMContentLoaded', function () {
   function productCardHtml(p) {
     return '<a href="product.html?slug=' + encodeURIComponent(p.id) + '" class="menu-card-link">' +
         '<div class="menu-card" data-category="' + escapeHtml(p.category) + '">' +
-          '<div class="menu-img"><img class="menu-emoji" loading="lazy" decoding="async" src="' +
-            escapeHtml(p.image) + '" alt="' + escapeHtml(p.name) + '"></div>' +
+          '<div class="menu-img">' +
+            '<img class="menu-emoji menu-img-front" loading="lazy" decoding="async" src="' +
+              escapeHtml(p.image) + '" alt="' + escapeHtml(p.name) + '">' +
+            '<img class="menu-emoji menu-img-back" loading="lazy" decoding="async" aria-hidden="true" alt="" src="' +
+              escapeHtml(p.hoverImage || p.image) + '">' +
+          '</div>' +
           '<div class="menu-info">' +
             '<h3 class="menu-title">' + escapeHtml(p.name) + '</h3>' +
             '<div class="menu-bottom">' +
@@ -260,7 +264,10 @@ document.addEventListener('DOMContentLoaded', function () {
         var haystack = ((titleEl ? titleEl.textContent : '') + ' ' + (descEl ? descEl.textContent : '')).toLowerCase();
         var matchesQuery = query === '' || haystack.indexOf(query) !== -1;
         var show = matchesCategory && matchesQuery;
-        card.style.display = show ? '' : 'none';
+        // The grid item is the wrapping <a>, not the inner card. Hiding only
+        // the card left empty cells behind, which made the grid look ragged.
+        var gridItem = card.closest('.menu-card-link') || card;
+        gridItem.style.display = show ? '' : 'none';
         if (show) visibleCount += 1;
       });
 

@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Evora | Modern Apparel & Everyday Style</title>
+  <meta name="description" content="Evora is a modern apparel label — everyday clothing made to last. Shop tees, denim, dresses and accessories with cash on delivery across Pakistan.">
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="Evora">
+  <meta property="og:title" content="Evora | Modern Apparel & Everyday Style">
+  <meta property="og:description" content="Everyday clothing made to last. Tees, denim, dresses and accessories — cash on delivery across Pakistan.">
+  <meta property="og:image" content="assets/evora-logo.png">
+  <meta name="theme-color" content="#1a1a1a">
+  <link rel="icon" type="image/svg+xml" href="assets/evora-logo.svg">
+  <link rel="stylesheet" href="style.css?v=29">
+
+  <style>
+  .deals-slider {
+    padding: 24px 0;
+  }
+
+  .deals-slider-inner {
+    max-width: 1280px;
+    margin: 0 auto;
+    padding: 0 16px;
+  }
+
+  .deals-track-wrap {
+    position: relative;
+  }
+
+  .deals-track {
+    display: flex;
+    gap: 16px;
+    overflow-x: auto;
+    scroll-behavior: smooth;
+    padding: 8px 40px;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+
+  .deals-track::-webkit-scrollbar {
+    display: none;
+  }
+
+  .deals-side-arrow {
+    display: none;
+  }
+  </style>
+</head>
+<body>
+
+  <!-- Cart side panel -->
+  <div class="cart-panel-overlay" id="cartPanelOverlay"></div>
+  <aside class="cart-panel" id="cartPanel" role="dialog" aria-label="Your cart" aria-hidden="true">
+    <div class="cp-header">
+      <span class="cp-header-title">
+        <img src="assets/cart-icon.png" alt="" class="cp-header-icon">
+        Your Cart
+      </span>
+      <button type="button" class="cp-close" id="cartPanelClose" aria-label="Close cart">&times;</button>
+    </div>
+
+    <div class="cp-scroll" id="cartPanelScroll">
+      <div class="cp-items" id="cartPanelItems"></div>
+
+      <a href="menu.html" class="cp-add-more">
+        <span>&plus;</span> Add more items
+      </a>
+
+      <div class="cp-upsell" id="cartPanelUpsell" style="display:none;">
+        <div class="cp-upsell-header">
+          <span class="cp-upsell-bar"></span>
+          <img class="cp-upsell-fire" src="assets/icon-fire.svg" alt="">
+          <span class="cp-upsell-title">Popular with your order</span>
+          <div class="cp-upsell-arrows">
+            <button type="button" class="cp-upsell-arrow prev" id="cpUpsellPrev" aria-label="Scroll left">&lsaquo;</button>
+            <button type="button" class="cp-upsell-arrow next" id="cpUpsellNext" aria-label="Scroll right">&rsaquo;</button>
+          </div>
+        </div>
+        <div class="cp-upsell-track" id="cartPanelUpsellTrack"></div>
+      </div>
+    </div>
+
+    <div class="cp-footer">
+      <div class="cp-summary" id="cartPanelSummary"></div>
+      <a href="checkout.html" class="cp-checkout-btn">
+        checkout <span>&rarr;</span>
+      </a>
+    </div>
+  </aside>
+
+  <!-- Floating "added to cart" bar -->
+  <div class="cart-float-bar" id="cartFloatBar" role="button" tabindex="0" aria-label="View cart">
+    <span class="cfb-shine"></span>
+    <span class="cfb-count">0</span>
+    <span class="cfb-label">View Cart</span>
+    <span class="cfb-price">Rs. 0</span>
+    <span class="cfb-arrow">&rarr;</span>
+  </div>
+
+  <!-- Categories side panel (slides in from left) -->
+  <div class="categories-panel-overlay" id="categoriesPanelOverlay"></div>
+  <aside class="categories-panel" id="categoriesPanel" role="dialog" aria-label="Categories" aria-hidden="true">
+    <div class="categories-panel-header">
+      <img src="assets/evora-logo.svg" alt="Evora" class="categories-panel-logo">
+    </div>
+    <div class="cp-scroll" id="categoriesPanelScroll">
+      <div class="categories-panel-list" id="categoriesPanelList"></div>
+    </div>
+  </aside>
+
+  <header class="navbar">
+    <div class="navbar-bunting"></div>
+    <div class="topbar-inner">
+
+      <!-- LEFT: Categories button -->
+      <div class="navbar-left">
+        <div class="categories-wrap">
+          <button class="categories-btn" id="categoriesBtn" aria-expanded="false" aria-haspopup="dialog" aria-controls="categoriesPanel">
+            <img src="assets/icon-menu.png" alt="" class="categories-icon">
+          </button>
+        </div>
+      </div>
+
+      <!-- CENTER: Logo -->
+      <a href="index.html" class="nav-logo"><img src="assets/evora-logo.svg" alt="Evora" class="nav-logo-img"></a>
+
+      <!-- RIGHT: Complaint, Cart, Options -->
+      <div class="topbar-actions">
+        <a href="contact.html" class="complaint-pill">
+          <span class="complaint-text">
+            <strong>Help &amp; Support</strong>
+            <span class="complaint-sub">Returns &amp; order help</span>
+          </span>
+          <span class="complaint-icon-wrap"><img src="assets/complaint.png" alt="" class="complaint-icon"></span>
+        </a>
+
+        <span class="navbar-divider"></span>
+
+        <div class="cart-wrap">
+          <button class="icon-btn cart-btn" id="cartBtn" aria-label="View cart" aria-haspopup="dialog">
+            <img src="assets/cart-icon.png" alt="" class="icon-btn-img">
+            <span class="badge">0</span>
+          </button>
+        </div>
+
+      </div>
+
+    </div>
+  </header>
+
+  <!-- Hero: auto-rotating deal banner carousel -->
+  <section class="deal-carousel">
+    <div class="deal-carousel-inner">
+
+      <div class="carousel" id="dealCarousel" role="region" aria-roledescription="carousel" aria-label="Today's deals">
+        <div class="carousel-track" id="carouselTrack">
+
+          <div class="carousel-slide active" data-slide="0">
+            <img class="cs-img" src="assets/d1.png" alt="New Season deal">
+          </div>
+          <div class="carousel-slide" data-slide="1">
+            <img class="cs-img" src="assets/d2.png" alt="Midnight Munchies deal">
+          </div>
+
+          <div class="carousel-slide" data-slide="2">
+            <img class="cs-img" src="assets/d3.png" alt="Family Feast deal">
+          </div>
+
+          <div class="carousel-slide" data-slide="3">
+            <img class="cs-img" src="assets/d4.png" alt="Roll combo deal">
+          </div>
+
+        </div>
+
+        <button class="carousel-arrow prev" id="carouselPrev" aria-label="Previous deal">&#8249;</button>
+        <button class="carousel-arrow next" id="carouselNext" aria-label="Next deal">&#8250;</button>
+        <div class="carousel-dots" id="carouselDots"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Search bar -->
+  <!-- Sliding deals / category bar -->
+  <section class="deals-slider">
+    <div class="deals-slider-inner">
+      <div class="deals-track-wrap">
+        <button class="arrow-btn deals-side-arrow deals-arrow-left" id="dealsPrev" aria-label="Scroll left">&#8249;</button>
+        <div class="deals-track" id="dealsTrack">
+          <a href="menu.html?filter=men" class="deal-pill">
+            <img class="deal-icon" src="assets/vecteezy_formal-men-s-sky-blue-check-shirt-on-white-background_28629202.JPG" alt="">
+            <span>MEN TOPS</span>
+          </a>
+          <a href="menu.html?filter=men" class="deal-pill">
+            <img class="deal-icon" src="assets/vecteezy_a-photograph-of-a-middle-aged-man-with-a-bald-head-and-a_59373353.jpg" alt="">
+            <span>MEN BOTTOMS</span>
+          </a>
+          <a href="menu.html?filter=women" class="deal-pill">
+            <img class="deal-icon" src="assets/vecteezy_handsome-young-man-in-tan-shirt-and-jeans-standing-against_65665582.jpeg" alt="">
+            <span>WOMEN TOPS</span>
+          </a>
+          <a href="menu.html?filter=women" class="deal-pill">
+            <img class="deal-icon" src="assets/vecteezy_a-photograph-of-a-middle-aged-man-with-a-bald-head-and-a_59373353.jpg" alt="">
+            <span>WOMEN BOTTOMS</span>
+          </a>
+          <a href="menu.html?filter=unisex" class="deal-pill">
+            <img class="deal-icon" src="assets/vecteezy_handsome-young-man-in-tan-shirt-and-jeans-standing-against_65665582.jpeg" alt="">
+            <span>UNISEX</span>
+          </a>
+        </div>
+        <button class="arrow-btn deals-side-arrow deals-arrow-right" id="dealsNext" aria-label="Scroll right">&#8250;</button>
+      </div>
+    </div>
+  </section>
+  <section class="search-bar-section">
+    <form class="search-bar" id="menuSearchForm" role="search">
+  <img src="assets/search.png" alt="" class="search-icon-img">
+  <input type="text" id="menuSearchInput" class="search-input" placeholder="Search for Classic Crew Neck Tee..." aria-label="Search menu items" autocomplete="off">
+  <button type="submit" class="search-submit-btn" aria-label="Search">
+    <img src="assets/arrow.png" alt="" class="search-arrow-img">
+  </button>
+</form>
+  </section>
+
+  <section class="category-section">
+    <div class="section-inner">
+      <h2 class="section-title popular-title">Popular <em>Items</em></h2>
+      <p class="section-sub">Most ordered right now &mdash; picked by our community.</p>
+
+      <div class="category-block">
+        <div class="category-head">
+          <h3 class="category-title">&nbsp;</h3>
+          <a href="menu.html" class="category-link">View All &rarr;</a>
+        </div>
+        <div class="menu-full-grid" data-products="classic-crew-neck-tee,floral-maxi-dress,slim-fit-denim-jeans,hooded-pullover-sweatshirt"></div>
+      </div>
+
+      <div class="category-block">
+        <div class="category-head">
+          <h3 class="category-title">Men</h3>
+          <a href="menu.html?filter=men" class="category-link">View All &rarr;</a>
+        </div>
+        <div class="menu-full-grid" data-products="classic-crew-neck-tee,slim-fit-denim-jeans,casual-chino-pants,hooded-pullover-sweatshirt"></div>
+      </div>
+
+      <div class="category-block">
+        <div class="category-head">
+          <h3 class="category-title">Women</h3>
+          <a href="menu.html?filter=women" class="category-link">View All &rarr;</a>
+        </div>
+        <div class="menu-full-grid" data-products="floral-maxi-dress,high-waist-palazzo-pants,embroidered-kurti,canvas-tote-bag"></div>
+      </div>
+
+      <div class="category-block">
+        <div class="category-head">
+          <h3 class="category-title">Unisex</h3>
+          <a href="menu.html?filter=unisex" class="category-link">View All &rarr;</a>
+        </div>
+        <div class="menu-full-grid" data-products="couple-combo-pack,embroidered-woolen-cap,stainless-steel-wristwatch,hooded-pullover-sweatshirt"></div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="section-inner about-grid">
+      <div class="about-visual">
+        <img class="about-emoji" src="assets/vecteezy_handsome-young-man-in-tan-shirt-and-jeans-standing-against_65665582.jpeg" alt="Evora style">
+      </div>
+      <div class="about-copy">
+        <span class="eyebrow">Our Story</span>
+        <h2 class="section-title">Crafted to Wear, Built to Last</h2>
+        <p class="about-desc">Evora is a modern clothing label for everyday wear. We design clean, well-fitted pieces using quality fabrics &mdash; made to be layered, lived in, and loved across seasons.</p>
+        <a href="about.html" class="btn btn-outline">Learn More</a>
+      </div>
+    </div>
+  </section>
+
+  <footer class="site-footer">
+    <div class="footer-inner">
+      <div class="footer-col footer-col-brand">
+        <span class="footer-logo"><img src="assets/evora-logo.svg" alt="Evora" class="footer-logo-img"></span>
+        <p class="footer-tagline">Modern clothing, made for everyday life.</p>
+      </div>
+      <div class="footer-col">
+        <h4 class="footer-heading">Contact us</h4>
+        <p class="footer-contact-line"><span class="ft-icon ft-icon-phone" aria-hidden="true"></span><a href="tel:03343745379">0334-3745379</a></p>
+        <p class="footer-contact-line"><span class="ft-icon ft-icon-pin" aria-hidden="true"></span>Studio &mdash; Karachi, Pakistan</p>
+      </div>
+      <div class="footer-col">
+        <h4 class="footer-heading">Follow us</h4>
+        <div class="footer-social">
+          <a href="#" class="footer-social-link" aria-label="Facebook"><span class="ft-icon ft-icon-fb" aria-hidden="true"></span></a>
+          <a href="#" class="footer-social-link" aria-label="Instagram"><span class="ft-icon ft-icon-ig" aria-hidden="true"></span></a>
+        </div>
+      </div>
+      <div class="footer-col">
+        <h4 class="footer-heading">Help</h4>
+        <a href="contact.html" class="footer-link">Contact Support</a>
+        <a href="contact.html" class="footer-link">Our Locations</a>
+        <a href="about.html" class="footer-link">Blogs</a>
+        <a href="contact.html" class="footer-link">Bank Discounts</a>
+      </div>
+    </div>
+    <div class="footer-top-image">
+      <img src="assets/footerbg.png" alt="Footer decoration">
+    </div>
+    <div class="footer-bottom">
+      <span class="footer-powered">POWERED BY <a href="#" class="footer-bottom-link">KODO</a></span>
+      <span class="footer-divider">|</span>
+      <a href="#" class="footer-bottom-link">PRIVACY POLICY</a>
+      <span class="footer-divider">|</span>
+      <a href="#" class="footer-bottom-link">FAQS</a>
+    </div>
+  </footer>
+
+  <button class="floating-btn floating-search" id="floatingSearch" type="button" aria-label="Search the shop">
+    <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
+      <path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M21 21l-4.3-4.3M10.5 18a7.5 7.5 0 1 1 0-15 7.5 7.5 0 0 1 0 15z"/>
+    </svg>
+  </button>
+  <button class="floating-btn floating-top" id="floatingTop" type="button" aria-label="Back to top">
+    <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
+      <path fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" d="M6 15l6-6 6 6"/>
+    </svg>
+  </button>
+
+  <script src="catalog.js?v=29"></script>
+  <script src="api-client.js?v=29"></script>
+  <script src="script.js?v=29"></script>
+</body>
+</html>

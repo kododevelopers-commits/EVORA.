@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Product | Evora</title>
+  <meta name="description" content="Shop this piece from the Evora collection — quality fabric, everyday fit, and cash on delivery across Pakistan.">
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="Evora">
+  <meta property="og:title" content="Product | Evora">
+  <meta property="og:description" content="Quality fabric, everyday fit, and cash on delivery across Pakistan.">
+  <meta property="og:image" content="assets/evora-logo.png">
+  <meta name="theme-color" content="#1a1a1a">
+  <link rel="icon" type="image/svg+xml" href="assets/evora-logo.svg">
+  <link rel="stylesheet" href="style.css?v=29">
+</head>
+<body>
+
+  <!-- Cart side panel -->
+  <div class="cart-panel-overlay" id="cartPanelOverlay"></div>
+  <aside class="cart-panel" id="cartPanel" role="dialog" aria-label="Your cart" aria-hidden="true">
+    <div class="cp-header">
+      <span class="cp-header-title">
+        <img src="assets/icon-cart.svg" alt="" class="cp-header-icon">
+        Your Cart
+      </span>
+      <button type="button" class="cp-close" id="cartPanelClose" aria-label="Close cart">&times;</button>
+    </div>
+    <div class="cp-scroll" id="cartPanelScroll">
+      <div class="cp-items" id="cartPanelItems"></div>
+      <a href="menu.html" class="cp-add-more">
+        <span>&plus;</span> Add more items
+      </a>
+    </div>
+    <div class="cp-footer">
+      <div class="cp-summary" id="cartPanelSummary"></div>
+      <a href="checkout.html" class="cp-checkout-btn">
+        checkout <span>&rarr;</span>
+      </a>
+    </div>
+  </aside>
+
+  <!-- Floating "added to cart" bar -->
+  <div class="cart-float-bar" id="cartFloatBar" role="button" tabindex="0" aria-label="View cart">
+    <span class="cfb-shine"></span>
+    <span class="cfb-count">0</span>
+    <span class="cfb-label">View Cart</span>
+    <span class="cfb-price">Rs. 0</span>
+    <span class="cfb-arrow">&rarr;</span>
+  </div>
+
+  <!-- Categories side panel -->
+  <div class="categories-panel-overlay" id="categoriesPanelOverlay"></div>
+  <aside class="categories-panel" id="categoriesPanel" role="dialog" aria-label="Categories" aria-hidden="true">
+    <div class="categories-panel-header">
+      <img src="assets/evora-logo.svg" alt="Evora" class="categories-panel-logo">
+    </div>
+    <div class="cp-scroll" id="categoriesPanelScroll">
+      <div class="categories-panel-list" id="categoriesPanelList"></div>
+    </div>
+  </aside>
+
+  <header class="navbar">
+    <div class="navbar-bunting"></div>
+    <div class="topbar-inner">
+      <div class="navbar-left">
+        <div class="categories-wrap">
+          <button class="categories-btn" id="categoriesBtn" aria-expanded="false" aria-haspopup="dialog" aria-controls="categoriesPanel">
+            <img src="assets/icon-menu.png" alt="" class="categories-icon">
+          </button>
+        </div>
+      </div>
+      <a href="index.html" class="nav-logo"><img src="assets/evora-logo.svg" alt="Evora" class="nav-logo-img"></a>
+      <div class="topbar-actions">
+        <a href="contact.html" class="complaint-pill">
+          <span class="complaint-text">
+            <strong>Help &amp; Support</strong>
+            <span class="complaint-sub">Returns &amp; order help</span>
+          </span>
+          <span class="complaint-icon-wrap"><img src="assets/complaint.png" alt="" class="complaint-icon"></span>
+        </a>
+        <span class="navbar-divider"></span>
+        <div class="cart-wrap">
+          <button class="icon-btn cart-btn" id="cartBtn" aria-label="View cart" aria-haspopup="dialog">
+            <img src="assets/cart-icon.png" alt="" class="icon-btn-img">
+            <span class="badge">0</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- Product detail -->
+  <section class="product-page">
+    <div class="product-page-inner">
+      <div class="product-gallery">
+        <div class="product-main-img">
+          <img id="productMainImg" src="" alt="Product image">
+        </div>
+        <div class="product-thumbs" id="productThumbs"></div>
+      </div>
+
+      <div class="product-info">
+        <span class="product-eyebrow" id="productEyebrow">Apparel</span>
+        <h1 class="product-title" id="productTitle">Product name</h1>
+        <div class="product-price" id="productPrice">Rs. 0</div>
+        <p class="product-desc" id="productDesc">Product description goes here.</p>
+
+        <div class="product-meta">
+          <div class="product-meta-row">
+            <span class="product-meta-label">Category</span>
+            <span class="product-meta-value" id="productCategory">—</span>
+          </div>
+          <div class="product-meta-row">
+            <span class="product-meta-label">Availability</span>
+            <span class="product-meta-value">In stock</span>
+          </div>
+        </div>
+
+        <div class="product-buy">
+          <button class="add-btn" id="productAddBtn" aria-label="Add to cart">+</button>
+          <div class="qty-control" id="productQtyControl" style="display:none;">
+            <button class="qty-btn qty-minus" type="button" aria-label="Decrease quantity">&minus;</button>
+            <span class="qty-value" id="productQtyValue">1</span>
+            <button class="qty-btn qty-plus" type="button" aria-label="Increase quantity">&plus;</button>
+          </div>
+          <a href="menu.html" class="btn btn-outline">Back to menu</a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- You may also like -->
+  <section class="product-related">
+    <div class="section-inner">
+      <span class="eyebrow-center">More to love</span>
+      <h2 class="section-title">You may also like</h2>
+      <div class="menu-full-grid" id="relatedGrid"></div>
+    </div>
+  </section>
+
+  <footer class="site-footer">
+    <div class="footer-top-image">
+      <img src="assets/footerbg.png" alt="Footer decoration">
+    </div>
+    <div class="footer-inner">
+      <div>
+        <span class="nav-logo footer-logo"><img src="assets/evora-logo.svg" alt="Evora" class="footer-logo-img"></span>
+        <p class="footer-tagline">Modern clothing, made for everyday life.</p>
+      </div>
+      <div>
+        <h4 class="footer-heading">Quick Links</h4>
+        <a href="index.html" class="footer-link">Home</a>
+        <a href="menu.html" class="footer-link">Shop</a>
+        <a href="about.html" class="footer-link">About</a>
+        <a href="contact.html" class="footer-link">Contact</a>
+      </div>
+      <div>
+        <h4 class="footer-heading">Get In Touch</h4>
+        <p class="footer-contact-line"><img src="assets/icon-location.svg" alt="">Studio &mdash; Karachi, Pakistan</p>
+        <p class="footer-contact-line"><img src="assets/icon-phone.svg" alt="">0334-3745379</p>
+        <p class="footer-contact-line"><img src="assets/icon-email.svg" alt="">kododevelopers@gmail.com</p>
+      </div>
+    </div>
+    <div class="footer-bottom">&copy; 2026 Evora. Built by KODO.</div>
+  </footer>
+
+  <script src="catalog.js?v=29"></script>
+  <script src="api-client.js?v=29"></script>
+  <script src="script.js?v=29"></script>
+  <script>
+    // ---------- Product page logic ----------
+    // Product data comes from catalog.js (the single source of truth). Map the
+    // shared shape onto the short field names this page uses below.
+    var PRODUCTS = ((typeof EVORA_CATALOG !== 'undefined' && EVORA_CATALOG.items) || [])
+      .filter(function (p) { return p.available !== false; })
+      .map(function (p) {
+        return {
+          slug: p.id,
+          name: p.name,
+          price: p.price,
+          cat: p.category,
+          catLabel: p.categoryLabel,
+          img: p.image,
+          desc: p.description
+        };
+      });
+
+    function getSlugFromUrl() {
+      var params = new URLSearchParams(window.location.search);
+      return params.get('slug') || '';
+    }
+
+    function findProduct(slug) {
+      var match = PRODUCTS.find(function (p) { return p.slug === slug; });
+      if (match) return match;
+      // fallback: try matching by name
+      var decoded = (slug || '').replace(/-/g, ' ').toLowerCase();
+      return PRODUCTS.find(function (p) { return p.name.toLowerCase() === decoded; }) || PRODUCTS[0];
+    }
+
+    function renderProduct() {
+      var slug = getSlugFromUrl();
+      var product = findProduct(slug);
+
+      document.getElementById('productTitle').textContent = product.name;
+      document.getElementById('productPrice').textContent = 'Rs. ' + product.price.toLocaleString();
+      document.getElementById('productDesc').textContent = product.desc;
+      document.getElementById('productCategory').textContent = product.catLabel || product.cat;
+      document.getElementById('productEyebrow').textContent = (product.catLabel || product.cat) + ' · New';
+      document.getElementById('productMainImg').src = product.img;
+      document.getElementById('productMainImg').alt = product.name;
+
+      // Use a placeholder image (same product image 4 times) as thumbnails —
+      // we only have one photo per product in this demo set.
+      var thumbs = document.getElementById('productThumbs');
+      thumbs.innerHTML = '';
+      for (var i = 0; i < 4; i++) {
+        var t = document.createElement('img');
+        t.src = product.img;
+        t.alt = product.name + ' view ' + (i + 1);
+        t.className = 'product-thumb' + (i === 0 ? ' active' : '');
+        t.addEventListener('click', function (e) {
+          document.querySelectorAll('.product-thumb').forEach(function (x) { x.classList.remove('active'); });
+          e.target.classList.add('active');
+          document.getElementById('productMainImg').src = e.target.src;
+        });
+        thumbs.appendChild(t);
+      }
+
+      // Wire add to cart.
+      // script.js owns the cart, the badge and the "View Cart" floating bar.
+      // It publishes window.EVORA_CART, so we use that instead of writing to
+      // localStorage ourselves - otherwise the bar never appeared here.
+      var addBtn = document.getElementById('productAddBtn');
+      var qtyControl = document.getElementById('productQtyControl');
+      var qtyValue = document.getElementById('productQtyValue');
+      var cartApi = window.EVORA_CART;
+
+      if (!cartApi) {
+        console.error('EVORA_CART is missing - script.js did not load.');
+      }
+
+      function currentQty() {
+        var item = cartApi ? cartApi.get()[product.name] : null;
+        return item ? item.qty : 0;
+      }
+
+      function setProductQty(next) {
+        if (!cartApi) return;
+        cartApi.setQty(product.name, product.price, next);
+        qtyValue.textContent = String(Math.max(1, next));
+        if (next <= 0) {
+          addBtn.style.display = 'inline-flex';
+          qtyControl.style.display = 'none';
+          qtyValue.textContent = '1';
+        } else {
+          addBtn.style.display = 'none';
+          qtyControl.style.display = 'inline-flex';
+        }
+      }
+
+      addBtn.onclick = function () {
+        setProductQty(currentQty() + 1);
+      };
+      document.querySelector('#productQtyControl .qty-plus').onclick = function () {
+        setProductQty(currentQty() + 1);
+      };
+      document.querySelector('#productQtyControl .qty-minus').onclick = function () {
+        setProductQty(currentQty() - 1);
+      };
+
+      // If something is already in the cart, start in the "quantity" state
+      // instead of showing a lone "+".
+      (function syncInitialState() {
+        var q = currentQty();
+        if (q > 0) {
+          qtyValue.textContent = String(q);
+          addBtn.style.display = 'none';
+          qtyControl.style.display = 'inline-flex';
+        }
+      })();
+
+      // Related products (exclude current) — prefer same category, then fill from rest
+      var related = PRODUCTS.filter(function (p) { return p.slug !== product.slug && p.cat === product.cat; }).slice(0, 4);
+      if (related.length < 4) {
+        var extras = PRODUCTS.filter(function (p) { return p.slug !== product.slug && p.cat !== product.cat; });
+        related = related.concat(extras).slice(0, 4);
+      }
+      var grid = document.getElementById('relatedGrid');
+      grid.innerHTML = '';
+      related.forEach(function (p) {
+        var a = document.createElement('a');
+        a.href = 'product.html?slug=' + p.slug;
+        a.className = 'menu-card-link';
+        a.innerHTML =
+          '<div class="menu-card" data-category="' + p.cat + '">' +
+            '<div class="menu-img"><img class="menu-emoji" loading="lazy" decoding="async" src="' + p.img + '" alt="' + p.name + '"></div>' +
+            '<div class="menu-info">' +
+              '<h3 class="menu-title">' + p.name + '</h3>' +
+              '<div class="menu-bottom">' +
+                '<span class="price">Rs. ' + p.price.toLocaleString() + '</span>' +
+                '<button class="add-btn" aria-label="Add to cart">+</button>' +
+              '</div>' +
+            '</div>' +
+          '</div>';
+        grid.appendChild(a);
+      });
+    }
+
+    document.addEventListener('DOMContentLoaded', renderProduct);
+  </script>
+</body>
+</html>

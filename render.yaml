@@ -1,0 +1,67 @@
+# ============================================================================
+# render.yaml — one-click deploy of the Evora backend to Render (free tier)
+# ----------------------------------------------------------------------------
+# Render reads this file when you create a "Blueprint" from the repository.
+# Everything marked `sync: false` is a secret: Render asks you for the value
+# in its dashboard and stores it only there. Never put real values in here.
+#
+# The same service serves BOTH the website and the API, so there is no CORS
+# to configure and no second deployment to keep in sync.
+# ============================================================================
+services:
+  - type: web
+    name: evora
+    runtime: node
+    plan: free
+    region: singapore
+    rootDir: assets/server
+    buildCommand: npm ci
+    startCommand: npm start
+    healthCheckPath: /health
+    autoDeployTrigger: commit
+    envVars:
+      - key: NODE_VERSION
+        value: "24"
+
+      # ---- Where order + complaint emails are delivered ----
+      - key: NOTIFY_EMAIL
+        sync: false
+
+      # ---- Email sending ----
+      # Start with "gmail" (already working), switch to "brevo" when the
+      # Brevo account is verified. Gmail needs GMAIL_USER +
+      # GMAIL_APP_PASSWORD; Brevo needs the four BREVO_* values instead.
+      - key: EMAIL_PROVIDER
+        value: gmail
+      - key: GMAIL_USER
+        sync: false
+      - key: GMAIL_APP_PASSWORD
+        sync: false
+      - key: BREVO_SMTP_HOST
+        value: smtp-relay.brevo.com
+      - key: BREVO_SMTP_PORT
+        value: "587"
+      - key: BREVO_SMTP_USER
+        sync: false
+      - key: BREVO_SMTP_KEY
+        sync: false
+      - key: BREVO_SENDER_EMAIL
+        sync: false
+
+      # ---- Persistent storage (required on Render — the disk is ephemeral) ----
+      # Upstash Redis free tier. Without these two the server would fall back
+      # to JSON files that Render wipes on every restart.
+      - key: UPSTASH_REDIS_REST_URL
+        sync: false
+      - key: UPSTASH_REDIS_REST_TOKEN
+        sync: false
+
+      # ---- Admin dashboard ----
+      - key: ADMIN_API_KEY
+        sync: false
+
+      # ---- Links inside emails ----
+      # Set this after the first deploy, to the URL Render gives you,
+      # e.g. https://evora-xxxx.onrender.com
+      - key: PUBLIC_BASE_URL
+        sync: false

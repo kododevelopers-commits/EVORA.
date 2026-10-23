@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Contact | Evora</title>
+  <meta name="description" content="Questions about an order, a product or a return? Contact the Evora team — Mon–Sat, 10 AM – 8 PM.">
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="Evora">
+  <meta property="og:title" content="Contact | Evora">
+  <meta property="og:description" content="Questions about an order, a product or a return? Reach the Evora team — Mon–Sat, 10 AM – 8 PM.">
+  <meta property="og:image" content="assets/evora-logo.png">
+  <meta name="theme-color" content="#1a1a1a">
+  <link rel="icon" type="image/svg+xml" href="assets/evora-logo.svg">
+  <link rel="stylesheet" href="style.css?v=29">
+</head>
+<body>
+
+  <!-- Cart side panel -->
+  <div class="cart-panel-overlay" id="cartPanelOverlay"></div>
+  <aside class="cart-panel" id="cartPanel" role="dialog" aria-label="Your cart" aria-hidden="true">
+    <div class="cp-header">
+      <span class="cp-header-title">
+        <img src="assets/icon-cart.svg" alt="" class="cp-header-icon">
+        Your Cart
+      </span>
+      <button type="button" class="cp-close" id="cartPanelClose" aria-label="Close cart">&times;</button>
+    </div>
+
+    <div class="cp-scroll" id="cartPanelScroll">
+      <div class="cp-items" id="cartPanelItems"></div>
+
+      <a href="menu.html" class="cp-add-more">
+        <span>&plus;</span> Add more items
+      </a>
+
+      <div class="cp-upsell" id="cartPanelUpsell" style="display:none;">
+        <div class="cp-upsell-header">
+          <span class="cp-upsell-bar"></span>
+          <img class="cp-upsell-fire" src="assets/icon-fire.svg" alt="">
+          <span class="cp-upsell-title">Popular with your order</span>
+          <div class="cp-upsell-arrows">
+            <button type="button" class="cp-upsell-arrow prev" id="cpUpsellPrev" aria-label="Scroll left">&lsaquo;</button>
+            <button type="button" class="cp-upsell-arrow next" id="cpUpsellNext" aria-label="Scroll right">&rsaquo;</button>
+          </div>
+        </div>
+        <div class="cp-upsell-track" id="cartPanelUpsellTrack"></div>
+      </div>
+    </div>
+
+    <div class="cp-footer">
+      <div class="cp-summary" id="cartPanelSummary"></div>
+      <a href="checkout.html" class="cp-checkout-btn">
+        checkout <span>&rarr;</span>
+      </a>
+    </div>
+  </aside>
+
+  <!-- Floating "added to cart" bar -->
+  <div class="cart-float-bar" id="cartFloatBar" role="button" tabindex="0" aria-label="View cart">
+    <span class="cfb-shine"></span>
+    <span class="cfb-count">0</span>
+    <span class="cfb-label">View Cart</span>
+    <span class="cfb-price">Rs. 0</span>
+    <span class="cfb-arrow">&rarr;</span>
+  </div>
+
+  <!-- Categories side panel (slides in from left) -->
+
+  <!-- Categories side panel (slides in from left) -->
+  <div class="categories-panel-overlay" id="categoriesPanelOverlay"></div>
+  <aside class="categories-panel" id="categoriesPanel" role="dialog" aria-label="Categories" aria-hidden="true">
+    <div class="categories-panel-header">
+      <img src="assets/evora-logo.svg" alt="Evora" class="categories-panel-logo">
+    </div>
+    <div class="cp-scroll" id="categoriesPanelScroll">
+      <div class="categories-panel-list" id="categoriesPanelList"></div>
+    </div>
+  </aside>
+
+  <header class="navbar">
+    <div class="navbar-bunting"></div>
+    <div class="topbar-inner">
+
+      <!-- LEFT: Categories button -->
+      <div class="navbar-left">
+        <div class="categories-wrap">
+          <button class="categories-btn" id="categoriesBtn" aria-expanded="false" aria-haspopup="dialog" aria-controls="categoriesPanel">
+            <img src="assets/icon-menu.png" alt="" class="categories-icon">
+          </button>
+        </div>
+      </div>
+
+      <!-- CENTER: Logo -->
+      <a href="index.html" class="nav-logo"><img src="assets/evora-logo.svg" alt="Evora" class="nav-logo-img"></a>
+
+      <!-- RIGHT: Complaint, Cart -->
+      <div class="topbar-actions">
+        <a href="contact.html" class="complaint-pill">
+          <span class="complaint-text">
+            <strong>Help &amp; Support</strong>
+            <span class="complaint-sub">Returns &amp; order help</span>
+          </span>
+          <span class="complaint-icon-wrap"><img src="assets/complaint.png" alt="" class="complaint-icon"></span>
+        </a>
+
+        <span class="navbar-divider"></span>
+
+        <div class="cart-wrap">
+          <button class="icon-btn cart-btn" id="cartBtn" aria-label="View cart" aria-haspopup="dialog">
+            <img src="assets/cart-icon.png" alt="" class="icon-btn-img">
+            <span class="badge">0</span>
+          </button>
+        </div>
+
+      </div>
+
+    </div>
+  </header>
+
+  <section class="page-banner">
+    <span class="eyebrow-center">We're Here To Help</span>
+    <h1>Get In Touch</h1>
+    <p>Questions about a product, an order, or a return &mdash; send us a message and we'll get back to you.</p>
+  </section>
+
+  <section>
+    <div class="section-inner">
+      <div class="contact-grid">
+
+        <div class="form-card">
+          <h3>Send Us a Message</h3>
+          <p>Fill out the form and our team will respond within 24 hours.</p>
+
+          <form id="contactForm">
+            <div class="field">
+              <label for="cf-name">Full Name</label>
+              <input type="text" id="cf-name" name="name" placeholder="Your name" required>
+            </div>
+            <div class="field">
+              <label for="cf-email">Email Address</label>
+              <input type="email" id="cf-email" name="email" placeholder="you@example.com" required>
+            </div>
+            <div class="field">
+              <label for="cf-phone">Phone Number</label>
+              <input type="tel" id="cf-phone" name="phone" placeholder="03XX-XXXXXXX">
+            </div>
+            <div class="field">
+              <label for="cf-subject">Subject</label>
+              <select id="cf-subject" name="subject">
+                <option value="general">General Inquiry</option>
+                <option value="order">Order Question</option>
+                <option value="complaint">Submit a Complaint</option>
+                <option value="feedback">Feedback</option>
+                <option value="partnership">Partnership / Wholesale</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="cf-message">Message</label>
+              <textarea id="cf-message" name="message" placeholder="Tell us what's on your mind..." required></textarea>
+            </div>
+            <button type="submit" class="btn btn-primary btn-block">Send Message</button>
+            <div class="form-status" id="formStatus">Thanks! Your message has been received — we'll be in touch soon.</div>
+          </form>
+        </div>
+
+        <div>
+          <div class="info-card">
+            <span class="ic-icon"><img src="assets/icon-phone.svg" alt=""></span>
+            <div>
+              <h4>Call Us</h4>
+              <p>0334-3745379 &nbsp;&bull;&nbsp; Mon&ndash;Sat, 10 AM &ndash; 8 PM</p>
+            </div>
+          </div>
+          <div class="info-card">
+            <span class="ic-icon"><img src="assets/icon-email.svg" alt=""></span>
+            <div>
+              <h4>Email Us</h4>
+              <p>hello@evora.demo</p>
+            </div>
+          </div>
+          <div class="info-card">
+            <span class="ic-icon"><img src="assets/icon-location.svg" alt=""></span>
+            <div>
+              <h4>Visit Our Studio</h4>
+              <p>By appointment in Clifton, DHA, Gulshan-e-Iqbal, North Nazimabad &amp; Saddar</p>
+            </div>
+          </div>
+          <div class="info-card">
+            <span class="ic-icon"><img src="assets/icon-hours.svg" alt=""></span>
+            <div>
+              <h4>Support Hours</h4>
+              <p>10:00 AM &ndash; 8:00 PM, Monday through Saturday</p>
+            </div>
+          </div>
+
+          <div class="map-placeholder">
+            <img class="mp-icon" src="assets/icon-map.svg" alt="">
+            <span>Map preview — drop in your Google Maps embed here</span>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+  <footer class="site-footer">
+    <div class="footer-top-image">
+      <img src="assets/footerbg.png" alt="Footer decoration">
+    </div>
+    <div class="footer-inner">
+      <div>
+        <span class="nav-logo"><img src="assets/evora-logo.svg" alt="Evora" class="footer-logo-img"></span>
+        <p class="footer-tagline">Modern clothing, made for everyday life.</p>
+      </div>
+      <div>
+        <h4 class="footer-heading">Quick Links</h4>
+        <a href="index.html" class="footer-link">Home</a>
+        <a href="menu.html" class="footer-link">Shop</a>
+        <a href="about.html" class="footer-link">About</a>
+        <a href="contact.html" class="footer-link">Contact</a>
+      </div>
+      <div>
+        <h4 class="footer-heading">Get In Touch</h4>
+        <p class="footer-contact-line"><img src="assets/icon-location.svg" alt="">Studio &mdash; Karachi, Pakistan</p>
+        <p class="footer-contact-line"><img src="assets/icon-phone.svg" alt="">0334-3745379</p>
+        <p class="footer-contact-line"><img src="assets/icon-email.svg" alt="">kododevelopers@gmail.com</p>
+      </div>
+    </div>
+    <div class="footer-bottom">&copy; 2026 Evora. Built by KODO.</div>
+  </footer>
+
+  <script src="catalog.js?v=29"></script>
+  <script src="api-client.js?v=29"></script>
+  <script src="script.js?v=29"></script>
+</body>
+</html>

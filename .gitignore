@@ -1,0 +1,32 @@
+# ---- Secrets ----
+# Real credentials live in assets/server/.env, which is never committed.
+.env
+.env.*
+!.env.example
+assets/server/.env
+
+# ---- Runtime data (customer orders + complaints) ----
+assets/server/data/*.json
+assets/server/data/last-customer-email.html
+!assets/server/data/.gitkeep
+
+# ---- Dependencies ----
+node_modules/
+
+# ---- Logs ----
+*.log
+*.log.old
+npm-debug.log*
+
+# ---- OS junk ----
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ---- Editor ----
+.vscode/
+.idea/
+
+# ---- Local scratch ----
+*.tmp
+*.bak

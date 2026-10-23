@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>About | Evora</title>
+  <meta name="description" content="The story behind Evora — a modern apparel label built on quality fabric, honest pricing and everyday style.">
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="Evora">
+  <meta property="og:title" content="About | Evora">
+  <meta property="og:description" content="A modern apparel label built on quality fabric, honest pricing and everyday style.">
+  <meta property="og:image" content="assets/evora-logo.png">
+  <meta name="theme-color" content="#1a1a1a">
+  <link rel="icon" type="image/svg+xml" href="assets/evora-logo.svg">
+  <link rel="stylesheet" href="style.css?v=29">
+</head>
+<body>
+
+  <!-- Cart side panel -->
+  <div class="cart-panel-overlay" id="cartPanelOverlay"></div>
+  <aside class="cart-panel" id="cartPanel" role="dialog" aria-label="Your cart" aria-hidden="true">
+    <div class="cp-header">
+      <span class="cp-header-title">
+        <img src="assets/icon-cart.svg" alt="" class="cp-header-icon">
+        Your Cart
+      </span>
+      <button type="button" class="cp-close" id="cartPanelClose" aria-label="Close cart">&times;</button>
+    </div>
+
+    <div class="cp-scroll" id="cartPanelScroll">
+      <div class="cp-items" id="cartPanelItems"></div>
+
+      <a href="menu.html" class="cp-add-more">
+        <span>&plus;</span> Add more items
+      </a>
+
+      <div class="cp-upsell" id="cartPanelUpsell" style="display:none;">
+        <div class="cp-upsell-header">
+          <span class="cp-upsell-bar"></span>
+          <img class="cp-upsell-fire" src="assets/icon-fire.svg" alt="">
+          <span class="cp-upsell-title">Popular with your order</span>
+          <div class="cp-upsell-arrows">
+            <button type="button" class="cp-upsell-arrow prev" id="cpUpsellPrev" aria-label="Scroll left">&lsaquo;</button>
+            <button type="button" class="cp-upsell-arrow next" id="cpUpsellNext" aria-label="Scroll right">&rsaquo;</button>
+          </div>
+        </div>
+        <div class="cp-upsell-track" id="cartPanelUpsellTrack"></div>
+      </div>
+    </div>
+
+    <div class="cp-footer">
+      <div class="cp-summary" id="cartPanelSummary"></div>
+      <a href="checkout.html" class="cp-checkout-btn">
+        checkout <span>&rarr;</span>
+      </a>
+    </div>
+  </aside>
+
+  <!-- Floating "added to cart" bar -->
+  <div class="cart-float-bar" id="cartFloatBar" role="button" tabindex="0" aria-label="View cart">
+    <span class="cfb-shine"></span>
+    <span class="cfb-count">0</span>
+    <span class="cfb-label">View Cart</span>
+    <span class="cfb-price">Rs. 0</span>
+    <span class="cfb-arrow">&rarr;</span>
+  </div>
+
+  <!-- Categories side panel (slides in from left) -->
+
+  <!-- Categories side panel (slides in from left) -->
+  <div class="categories-panel-overlay" id="categoriesPanelOverlay"></div>
+  <aside class="categories-panel" id="categoriesPanel" role="dialog" aria-label="Categories" aria-hidden="true">
+    <div class="categories-panel-header">
+      <img src="assets/evora-logo.svg" alt="Evora" class="categories-panel-logo">
+    </div>
+    <div class="cp-scroll" id="categoriesPanelScroll">
+      <div class="categories-panel-list" id="categoriesPanelList"></div>
+    </div>
+  </aside>
+
+  <header class="navbar">
+    <div class="navbar-bunting"></div>
+    <div class="topbar-inner">
+
+      <!-- LEFT: Categories button -->
+      <div class="navbar-left">
+        <div class="categories-wrap">
+          <button class="categories-btn" id="categoriesBtn" aria-expanded="false" aria-haspopup="dialog" aria-controls="categoriesPanel">
+            <img src="assets/icon-menu.png" alt="" class="categories-icon">
+          </button>
+        </div>
+      </div>
+
+      <!-- CENTER: Logo -->
+      <a href="index.html" class="nav-logo"><img src="assets/evora-logo.svg" alt="Evora" class="nav-logo-img"></a>
+
+      <!-- RIGHT: Complaint, Cart -->
+      <div class="topbar-actions">
+        <a href="contact.html" class="complaint-pill">
+          <span class="complaint-text">
+            <strong>Help &amp; Support</strong>
+            <span class="complaint-sub">Returns &amp; order help</span>
+          </span>
+          <span class="complaint-icon-wrap"><img src="assets/complaint.png" alt="" class="complaint-icon"></span>
+        </a>
+
+        <span class="navbar-divider"></span>
+
+        <div class="cart-wrap">
+          <button class="icon-btn cart-btn" id="cartBtn" aria-label="View cart" aria-haspopup="dialog">
+            <img src="assets/cart-icon.png" alt="" class="icon-btn-img">
+            <span class="badge">0</span>
+          </button>
+        </div>
+
+      </div>
+
+    </div>
+  </header>
+
+  <section class="page-banner">
+    <span class="eyebrow-center">Our Story</span>
+    <h1>Crafted to Wear, Built to Last</h1>
+    <p>From a single sketchbook to a wardrobe staple across the country &mdash; here's the story behind Evora.</p>
+  </section>
+
+  <section>
+    <div class="section-inner about-grid">
+      <div class="about-visual">
+        <img class="about-emoji" src="assets/vecteezy_formal-men-s-sky-blue-check-shirt-on-white-background_28629202.JPG" alt="Evora style">
+      </div>
+      <div class="about-copy">
+        <span class="eyebrow">Who We Are</span>
+        <h2 class="section-title" style="text-align:left; margin-bottom:20px;">Quiet design, honest fabrics</h2>
+        <p class="about-desc">Evora is a modern clothing label built on the idea that everyday wear should feel as good as it looks. Every piece is designed in-house, cut from quality fabrics, and finished with the kind of details that hold up to real life &mdash; wash after wash, season after season.</p>
+        <a href="menu.html" class="btn btn-outline">Shop the Collection</a>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="section-inner">
+      <span class="eyebrow-center">What We Stand For</span>
+      <h2 class="section-title">Our Values</h2>
+      <div class="values-grid">
+        <div class="value-card">
+          <img class="v-emoji" src="assets/vecteezy_formal-men-s-sky-blue-check-shirt-on-white-background_28629202.JPG" alt="Quality Fabrics">
+          <h4>Quality Fabrics</h4>
+          <p>Hand-picked cottons, linens and denim &mdash; sourced for feel, not just for looks.</p>
+        </div>
+        <div class="value-card">
+          <img class="v-emoji" src="assets/vecteezy_handsome-young-man-in-tan-shirt-and-jeans-standing-against_65665582.jpeg" alt="Honest Pricing">
+          <h4>Honest Pricing</h4>
+          <p>No middlemen, no markups. You pay for the cut, the fabric, and the work &mdash; not the label.</p>
+        </div>
+        <div class="value-card">
+          <img class="v-emoji" src="assets/vecteezy_a-photograph-of-a-middle-aged-man-with-a-bald-head-and-a_59373353.jpg" alt="Made to Last">
+          <h4>Made to Last</h4>
+          <p>Timeless fits, sturdy stitching, and washes that keep their shape &mdash; designed to be worn for years.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="history">
+    <div class="section-inner">
+      <span class="eyebrow-center">Our Journey</span>
+      <h2 class="section-title">From Sketchbook to Streetwear</h2>
+      <div class="timeline">
+        <div class="timeline-item" data-step="1">
+          <span class="yr">2019</span>
+          <h4>The First Capsule</h4>
+          <p>Evora started as a six-piece capsule &mdash; tees and a shirt, designed at a kitchen table and stitched in small batches.</p>
+        </div>
+        <div class="timeline-item" data-step="2">
+          <span class="yr">2021</span>
+          <h4>Our Studio Opens</h4>
+          <p>Demand grew fast enough to open a small Karachi studio &mdash; a fitting room, a fabric wall, and a growing team.</p>
+        </div>
+        <div class="timeline-item" data-step="3">
+          <span class="yr">2023</span>
+          <h4>Shop Goes Online</h4>
+          <p>We took the collection online so anyone, anywhere, could build their everyday wardrobe with Evora.</p>
+        </div>
+        <div class="timeline-item" data-step="4">
+          <span class="yr">2025</span>
+          <h4>Unisex &amp; Core Staples</h4>
+          <p>From relaxed unisex staples to refined core pieces, we expanded the line without losing the clean Evora feel.</p>
+        </div>
+        <div class="timeline-item" data-step="5">
+          <span class="yr">Today</span>
+          <h4>Still Designing, Still Stitching</h4>
+          <p>Same studio, same standards &mdash; just more styles, more sizes, and more reasons to open your wardrobe.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="blog">
+    <div class="section-inner">
+      <span class="eyebrow-center">From The Studio</span>
+      <h2 class="section-title">Latest Notes &amp; Stories</h2>
+      <div class="blog-grid">
+        <div class="blog-card">
+          <div class="blog-thumb"><img src="assets/vecteezy_formal-men-s-sky-blue-check-shirt-on-white-background_28629202.JPG" alt=""></div>
+          <div class="blog-body">
+            <h4>What Makes a Great Everyday Tee</h4>
+            <p>How we picked the cotton, weight, and fit for our classic crew neck.</p>
+          </div>
+        </div>
+        <div class="blog-card">
+          <div class="blog-thumb"><img src="assets/vecteezy_a-photograph-of-a-middle-aged-man-with-a-bald-head-and-a_59373353.jpg" alt=""></div>
+          <div class="blog-body">
+            <h4>Behind Our Denim</h4>
+            <p>The wash, the cut, and why our slim-fit denim has been a top seller since day one.</p>
+          </div>
+        </div>
+        <div class="blog-card">
+          <div class="blog-thumb"><img src="assets/vecteezy_handsome-young-man-in-tan-shirt-and-jeans-standing-against_65665582.jpeg" alt=""></div>
+          <div class="blog-body">
+            <h4>How We Ship Across Pakistan</h4>
+            <p>A peek into our studio-to-door delivery and exchange process.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <footer class="site-footer">
+    <div class="footer-top-image">
+      <img src="assets/footerbg.png" alt="Footer decoration">
+    </div>
+    <div class="footer-inner">
+      <div>
+        <span class="nav-logo"><img src="assets/evora-logo.svg" alt="Evora" class="footer-logo-img"></span>
+        <p class="footer-tagline">Modern clothing, made for everyday life.</p>
+      </div>
+      <div>
+        <h4 class="footer-heading">Quick Links</h4>
+        <a href="index.html" class="footer-link">Home</a>
+        <a href="menu.html" class="footer-link">Shop</a>
+        <a href="about.html" class="footer-link">About</a>
+        <a href="contact.html" class="footer-link">Contact</a>
+      </div>
+      <div>
+       <h4 class="footer-heading">Get In Touch</h4>
+        <p class="footer-contact-line"><img src="assets/icon-location.svg" alt="">Studio &mdash; Karachi, Pakistan</p>
+        <p class="footer-contact-line"><img src="assets/icon-phone.svg" alt="">0334-3745379</p>
+        <p class="footer-contact-line"><img src="assets/icon-email.svg" alt="">kododevelopers@gmail.com</p>
+      </div>
+    </div>
+    <div class="footer-bottom">&copy; 2026 Evora. Built by KODO.</div>
+  </footer>
+
+  <button class="floating-btn floating-top" id="floatingTop" type="button" aria-label="Back to top">
+    <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
+      <path fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" d="M6 15l6-6 6 6"/>
+    </svg>
+  </button>
+
+  <script src="catalog.js?v=29"></script>
+  <script src="api-client.js?v=29"></script>
+  <script src="script.js?v=29"></script>
+</body>
+</html>

@@ -126,11 +126,9 @@ button {
 }
 
 .footer-logo {
-  height: 1px;
-  width: 190px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
+  height: 44px;
+  width: auto;
+  display: block;
   position: relative;
   overflow: visible;
 }
@@ -140,10 +138,8 @@ button {
   width: auto !important;
   max-height: none !important;
   display: block;
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
+  position: static;
+  transform: none;
   z-index: 5;
   filter: brightness(0) invert(1); /* turns the black wordmark white for dark footers */
 }

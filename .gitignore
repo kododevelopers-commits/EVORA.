@@ -13,6 +13,10 @@ assets/server/data/last-customer-email.html
 # ---- Dependencies ----
 node_modules/
 
+# ---- Netlify build output ----
+dist/
+.netlify/
+
 # ---- Logs ----
 *.log
 *.log.old

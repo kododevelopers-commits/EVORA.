@@ -51,20 +51,29 @@ function load() {
     { name: 'logo.png',        mime: 'image/png' },
     { name: 'logo.jpg',        mime: 'image/jpeg' }
   ];
-  for (const c of candidates) {
-    const p = path.join(SITE_ROOT, 'assets', c.name);
-    if (!fs.existsSync(p)) continue;
-    try {
-      const buf = fs.readFileSync(p);
-      const size = c.mime === 'image/png' ? readPngSize(buf) : readSvgSize(buf);
-      if (size && size.width > 0 && size.height > 0) {
-        aspect = size.width / size.height;
+  // Serverless bundles (Netlify) copy included files next to the handler and
+  // run with that folder as the working directory, so the repo-relative path
+  // does not exist there. Try both.
+  const roots = [
+    path.join(SITE_ROOT, 'assets'),
+    path.join(process.cwd(), 'assets')
+  ];
+  for (const root of roots) {
+    for (const c of candidates) {
+      const p = path.join(root, c.name);
+      if (!fs.existsSync(p)) continue;
+      try {
+        const buf = fs.readFileSync(p);
+        const size = c.mime === 'image/png' ? readPngSize(buf) : readSvgSize(buf);
+        if (size && size.width > 0 && size.height > 0) {
+          aspect = size.width / size.height;
+        }
+        dataUrl = 'data:' + c.mime + ';base64,' + buf.toString('base64');
+        mime = c.mime;
+        return { file: c.name, bytes: buf.length, aspect: aspect, mime: mime };
+      } catch (err) {
+        console.error('Could not read brand logo ' + c.name + ':', err.message);
       }
-      dataUrl = 'data:' + c.mime + ';base64,' + buf.toString('base64');
-      mime = c.mime;
-      return { file: c.name, bytes: buf.length, aspect: aspect, mime: mime };
-    } catch (err) {
-      console.error('Could not read brand logo ' + c.name + ':', err.message);
     }
   }
   return null;

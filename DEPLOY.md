@@ -1,184 +1,128 @@
-# Deploying Evora to Render (free)
+# Deploying Evora (free, no credit card)
 
-This puts the site **and** the backend on the internet, so orders arrive and
+This puts the site **and** the order backend online, so orders arrive and
 emails go out even when your laptop is switched off.
 
-Everything here is free and needs no credit card. The only trade-off is that
-Render's free tier puts the app to sleep after 15 minutes with no visitors, so
-the first request after a quiet spell takes ~30–60 seconds. Step 7 removes
-that.
+Three services, all free and none needing a card:
 
-> **Why not just keep the laptop on?** Because the backend runs on it. If it
-> is off, no order can be recorded and no email can be sent — no email
-> provider can fix that.
-
----
-
-## What you need
-
-| Account | Why | Card? |
+| Service | Job | Plan |
 |---|---|---|
-| GitHub | Render deploys from a Git repository | no |
-| Render | runs the server | no |
-| Upstash | stores orders (Render's free disk is wiped on restart) | no |
+| **Netlify** | serves the site, runs the backend as a function | Free (300 credits/month) |
+| **Upstash** | stores orders and complaints | Free (250 MB) |
+| **Brevo** | sends the emails | Free (300 emails/day) |
 
-Roughly 30–40 minutes the first time.
+> **Why Netlify and not Render?** Render now asks for a card even on the free
+> plan. Netlify's free plan needs none and allows commercial use. Vercel's
+> free Hobby plan is cheaper to set up but is restricted to non-commercial
+> projects.
 
----
-
-## 1. Create the database (Upstash)
-
-Do this first — you will need the two values in step 4.
-
-1. Sign up at <https://console.upstash.com/> (GitHub or email).
-2. **Create Database** → type **Redis** → any name, region **Singapore**,
-   plan **Free**.
-3. Open the database and scroll to **REST API**.
-4. Copy **`UPSTASH_REDIS_REST_URL`** and **`UPSTASH_REDIS_REST_TOKEN`**.
-
-Free plan limits (plenty for a shop): 250 MB of data, 500,000 commands/month,
-one database.
+> **The laptop is no longer involved.** Once deployed, customers reach the
+> Netlify URL, the function records the order in Upstash, and Brevo delivers
+> the two emails. Your computer can be off.
 
 ---
 
-## 2. Put the project on GitHub
+## What the backend actually runs on
 
-Git is already installed on your machine. In the project folder:
+Netlify serves the static pages from `dist/` and forwards `/api/*` and
+`/health` to `netlify/functions/api.js`, which wraps the same Express app in
+`assets/server/server.js`. No behaviour changes — same endpoints, same order
+validation, same admin dashboard.
 
-```powershell
-cd "C:\Users\muham\OneDrive\Documents\EVORA"
-git init
-git add .
-git commit -m "Evora store + backend"
-```
-
-Then create an **empty** repository at <https://github.com/new> — no README,
-no .gitignore — and push:
-
-```powershell
-git remote add origin https://github.com/YOUR-USERNAME/evora.git
-git branch -M main
-git push -u origin main
-```
-
-`.gitignore` already keeps out everything that must not be published:
-`.env` (your passwords), `data/*.json` (real customer orders), and
-`node_modules/`. **Check that before pushing** — if `git status` ever lists
-`assets/server/.env`, stop.
+Netlify Functions do not sleep for 15 minutes like Render; a cold start is
+milliseconds, so customers never wait.
 
 ---
 
-## 3. Deploy on Render
+## 1. Create the site
 
-1. Sign up at <https://render.com/> with your GitHub account.
-2. **New** → **Blueprint**.
-3. Pick the repository. Render reads `render.yaml` and shows one service
-   named **evora**.
-4. It asks for the `sync: false` values — fill them in from step 4 below.
-5. **Apply**. The first build takes a few minutes.
+1. Sign up at <https://app.netlify.com/signup> with **GitHub** (no card).
+2. **Add new site → Import an existing project → GitHub**.
+3. Authorise Netlify for the `EVORA.` repository when asked.
+4. Pick the repository. Netlify reads `netlify.toml` and fills in:
+   - Build command: `npm run build`
+   - Publish directory: `dist`
+   - Functions directory: `netlify/functions`
+5. Do **not** deploy yet — add the environment variables first (next step).
 
 ---
 
-## 4. Environment variables
+## 2. Environment variables
 
-Render asks for these when you apply the Blueprint (and they can be edited
-later under **evora → Environment**):
+**Site configuration → Environment variables → Add a variable** (add all
+seven, then deploy):
 
 | Key | Value |
 |---|---|
 | `NOTIFY_EMAIL` | `kododevelopers@gmail.com` |
-| `BREVO_API_KEY` | from Brevo → SMTP & API → **API Keys** |
-| `BREVO_SENDER_EMAIL` | the address you verified in Brevo |
-| `UPSTASH_REDIS_REST_URL` | from step 1 |
-| `UPSTASH_REDIS_REST_TOKEN` | from step 1 |
-| `ADMIN_API_KEY` | a long random string — use the same one as local so your admin login keeps working |
-| `PUBLIC_BASE_URL` | leave blank for now, set it after the first deploy |
+| `BREVO_API_KEY` | from Brevo → SMTP & API → **API Keys** (`xkeysib-…`) |
+| `BREVO_SENDER_EMAIL` | the address verified under Senders & IPs |
+| `UPSTASH_REDIS_REST_URL` | from the Upstash database's **REST API** section |
+| `UPSTASH_REDIS_REST_TOKEN` | same section |
+| `ADMIN_API_KEY` | your existing key from `assets\server\.env` |
+| `PUBLIC_BASE_URL` | leave empty for now |
 
-`EMAIL_PROVIDER=brevo` is already set in `render.yaml`.
-
-**Why the API key and not SMTP?** Render's free tier blocks outbound traffic
-to SMTP ports 25, 465 and 587
-([changelog](https://render.com/changelog/free-web-services-will-no-longer-allow-outbound-traffic-to-smtp-ports)),
-so `smtp-relay.brevo.com` would just time out. Brevo's HTTP API uses port 443
-and sends the same 300 free emails/day.
-
-**Do not** set `CORS_ORIGINS` — the same service serves the website and the
-API, so they are the same origin and need no CORS at all.
+Email goes through **Brevo's HTTPS API**, not SMTP: Netlify's functions
+cannot open SMTP connections, and the API key is what the backend uses when
+it is set. Keep **IP blocking off** in Brevo (Security → Authorised IPs);
+Netlify's outbound addresses change.
 
 ---
 
-## 5. Copy your existing orders into the database
+## 3. Deploy
 
-Once the deploy says **Live**, copy the records from your laptop into Upstash.
-Run this locally, with the two `UPSTASH_*` values temporarily in
-`assets/server/.env`:
+1. **Deploys → Trigger deploy → Deploy site**.
+2. Watch the log: `npm ci` for the backend, `Site built into dist/`, then
+   **Functions bundling**.
+3. When it says **Published**, open `https://YOUR-SITE.netlify.app/health` —
+   it should return `{"status":"ok"}`.
+
+---
+
+## 4. Point the emails at the real address
+
+1. Copy the site URL (`https://something.netlify.app`).
+2. Site configuration → Environment variables → set `PUBLIC_BASE_URL` to it.
+3. **Deploys → Trigger deploy** again (this makes "Track Your Order" links in
+   customer emails work).
+
+Each deploy costs **15 credits**, so batch changes when you can.
+
+---
+
+## 5. Check it end to end
+
+1. Open the site and place a test order.
+2. Confirm both emails arrive (your inbox + the customer address).
+3. Open `/admin.html` with your `ADMIN_API_KEY` and check the order appears.
+4. Send a test complaint from the contact page.
+
+Existing orders were copied to Upstash already. To copy new local ones later:
 
 ```powershell
-cd "C:\Users\muham\OneDrive\Documents\EVORA\assets\server"
+cd assets\server
 npm run migrate:redis
 ```
 
-It merges by ID and never duplicates, so it is safe to run twice. To keep a
-local backup later:
-
-```powershell
-npm run migrate:redis -- --pull
-```
+(`UPSTASH_*` must be in `.env` for that command.)
 
 ---
 
-## 6. Check it
+## Free plan limits
 
-Visit `https://YOUR-SERVICE.onrender.com/health` — you should get
-`{"status":"ok"}`.
+Netlify gives **300 credits/month**, hard stop (the site pauses until the
+next month if used up):
 
-Then:
+| Action | Cost | Rough allowance |
+|---|---|---|
+| Deploy | 15 credits | ~20 deploys |
+| Bandwidth | 20 credits/GB | ~15 GB |
+| Function requests | 2 credits/10k | ~150,000 requests |
+| Function compute | 10 credits/GB-hour | plenty at this size |
 
-1. Open the site, place a test order.
-2. Confirm it appears in the admin dashboard and that both emails arrive.
-3. Set `PUBLIC_BASE_URL` to the Render URL (e.g.
-   `https://evora-xxxx.onrender.com`) and redeploy — this makes the
-   "Track Your Order" links in customer emails work.
-
----
-
-## 7. Stop it from sleeping
-
-Render free services sleep after 15 minutes without traffic. Two options:
-
-**A. Accept it.** The site still works; the first visitor after a quiet spell
-waits ~30–60 seconds while the server wakes.
-
-**B. Keep it awake (free).** Create a free monitor at
-<https://cron-job.org/> that requests
-`https://YOUR-SERVICE.onrender.com/health` every **10 minutes**.
-
-Free plans include **750 instance-hours per month**. Running 24/7 is about
-744 hours in a 31-day month, so it just fits — but there is very little
-headroom. If Render suspends the service, switch the ping to daytime only
-(e.g. 08:00–23:00) or upgrade to Starter ($7/month).
-
----
-
-## Email on Render
-
-Email goes out through **Brevo's HTTPS API** (`EMAIL_PROVIDER=brevo` +
-`BREVO_API_KEY`). Nothing else is needed; the API key is what makes it work
-on the free tier, where SMTP ports are closed.
-
-To change the API key later: Render → **evora → Environment** →
-`BREVO_API_KEY` → save. Render restarts the service automatically and the
-next order uses the new key. `BREVO_SENDER_EMAIL` must stay an address
-verified under **Senders & IPs** in Brevo, or sends fail with
-`sender not valid`.
-
----
-
-## Local development is unchanged
-
-With `UPSTASH_*` blank in `assets/server/.env`, the server still reads and
-writes `data/*.json` exactly as before. Nothing about running it locally has
-changed.
+For a small shop that is comfortable — just don't redeploy dozens of times a
+month. Upstash free: 250 MB / 500k commands. Brevo free: 300 emails/day
+(two per order, so ~150 orders/day).
 
 ---
 
@@ -186,11 +130,22 @@ changed.
 
 | Symptom | Cause |
 |---|---|
-| Build fails on `npm ci` | `package-lock.json` missing from the repo — commit it |
-| Orders vanish after a restart | `UPSTASH_*` not set, or set after the deploy |
-| `The Evora backend isn't running` banner | The Render service is asleep (wait a minute) or the deploy failed — check **Logs** |
-| Emails time out / `ETIMEDOUT` | SMTP is blocked on the free tier — use `BREVO_API_KEY` (HTTPS API), not the SMTP relay |
-| `Brevo API: Key not found` | `BREVO_API_KEY` is wrong or revoked — create a new key under SMTP & API → API Keys |
-| `sender not valid` | `BREVO_SENDER_EMAIL` is not verified under Senders & IPs |
-| Admin page rejects the key | `ADMIN_API_KEY` on Render differs from the one you typed |
-| 502 / timeout on first visit | Cold start — see step 7 |
+| Build fails on `npm ci` | `assets/server/package-lock.json` missing from the repo |
+| `/health` returns 500 | Check **Deploys → Functions → api → Logs**; usually a missing environment variable |
+| "The Evora backend isn't running" banner | The function failed — read the function log, then redeploy |
+| Emails fail: `Key not found` | `BREVO_API_KEY` wrong or revoked |
+| Emails fail: `sender not valid` | `BREVO_SENDER_EMAIL` isn't verified in Brevo |
+| Emails fail: `unrecognised IP` | Turn off Brevo's IP blocking (Security → Authorised IPs) |
+| Orders vanish after a while | `UPSTASH_*` missing — the function fell back to files it cannot keep |
+| Admin page rejects the key | `ADMIN_API_KEY` on Netlify differs from what you typed |
+| Site paused mid-month | Out of credits — check **Team → Usage** |
+
+---
+
+## Local development is unchanged
+
+Run `npm start` in `assets\server` exactly as before. `dist/` and
+`netlify/functions` are only used by Netlify.
+
+`render.yaml` is kept for reference but is not used: Render's free plan now
+requires a credit card.

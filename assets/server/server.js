@@ -40,7 +40,7 @@ const SITE_ROOT = path.join(__dirname, '..', '..');
 // The product catalogue lives at the project root (catalog.js) so the browser
 // and the server read the SAME copy. Prices used to verify orders therefore
 // can never drift from the prices shown on the site.
-const CATALOG = require(path.join(SITE_ROOT, 'catalog.js'));
+const CATALOG = require('../../catalog.js');
 const ORDERS_KEY = 'orders';
 const CONTACTS_KEY = 'contacts';
 

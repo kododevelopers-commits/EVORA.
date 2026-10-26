@@ -1,12 +1,7 @@
 # ============================================================================
-# render.yaml — one-click deploy of the Evora backend to Render (free tier)
-# ----------------------------------------------------------------------------
-# Render reads this file when you create a "Blueprint" from the repository.
-# Everything marked `sync: false` is a secret: Render asks you for the value
-# in its dashboard and stores it only there. Never put real values in here.
-#
-# The same service serves BOTH the website and the API, so there is no CORS
-# to configure and no second deployment to keep in sync.
+# render.yaml — kept for reference only.
+# Render's free plan now asks for a credit card, so the live setup uses
+# Netlify instead: see DEPLOY.md and netlify.toml.
 # ============================================================================
 services:
   - type: web

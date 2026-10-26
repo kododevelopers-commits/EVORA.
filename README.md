@@ -5,8 +5,8 @@ Node.js + Express backend that serves the site **and** handles orders, contact
 complaints and email notifications.
 
 > **Want it online, so it keeps taking orders while your laptop is off?**
-> See **[DEPLOY.md](DEPLOY.md)** — a free Render deployment (no credit card),
-> with Upstash Redis for storage and Brevo as the recommended email sender.
+> See **[DEPLOY.md](DEPLOY.md)** — free Netlify hosting (no credit card),
+> with Upstash Redis for storage and Brevo for email.
 
 ---
 

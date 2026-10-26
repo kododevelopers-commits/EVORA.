@@ -800,24 +800,28 @@ app.post('/api/orders', writeLimiter, async function (req, res) {
 
   try {
     await storage.append(ORDERS_KEY, order);
-    // Fire-and-forget emails — the order is already saved. The store
-    // (NOTIFY_EMAIL) and the customer both get a copy, and the customer is
-    // the reply-to address on the store's copy so a reply can be written
-    // straight from the inbox. A failure on either never affects the order
-    // response.
-    sendNotificationEmail(
-      'New Evora order — ' + order.orderId,
-      buildOrderEmailText(order),
-      buildOrderEmailHtml(order),
-      { replyTo: order.customer.email }
-    );
-    sendEmailTo(
-      order.customer.email,
-      'Your Evora order #' + order.orderId + ' is confirmed',
-      buildCustomerOrderEmailText(order),
-      buildCustomerOrderEmailHtml(order),
-      { replyTo: STORE_EMAIL() }
-    );
+    // Both emails must finish before the response goes out. On a serverless
+    // host (Netlify) the function is frozen as soon as it responds, so a
+    // fire-and-forget send would never reach the mail provider. A failure
+    // here still never affects the order itself.
+    // The store (NOTIFY_EMAIL) and the customer both get a copy, and the
+    // customer is the reply-to address on the store's copy so a reply can be
+    // written straight from the inbox.
+    await Promise.allSettled([
+      sendNotificationEmail(
+        'New Evora order — ' + order.orderId,
+        buildOrderEmailText(order),
+        buildOrderEmailHtml(order),
+        { replyTo: order.customer.email }
+      ),
+      sendEmailTo(
+        order.customer.email,
+        'Your Evora order #' + order.orderId + ' is confirmed',
+        buildCustomerOrderEmailText(order),
+        buildCustomerOrderEmailHtml(order),
+        { replyTo: STORE_EMAIL() }
+      )
+    ]);
 
     res.status(201).json({
       success: true,
@@ -890,7 +894,7 @@ app.patch('/api/orders/:id/status', requireAdmin, writeLimiter, function (req, r
 // ---------------------------------------------------------------------------
 // Contact form
 // ---------------------------------------------------------------------------
-app.post('/api/contact', contactLimiter, function (req, res) {
+app.post('/api/contact', contactLimiter, async function (req, res) {
   const body = req.body || {};
 
   // Required fields
@@ -921,20 +925,23 @@ app.post('/api/contact', contactLimiter, function (req, res) {
     message: validation.trim(body.message)
   };
 
-  storage.append(CONTACTS_KEY, contact).then(function () {
-    // The complaint / enquiry lands in the shop's inbox with the customer as
-    // the reply-to address, so pressing Reply answers them directly.
-    sendNotificationEmail(
+  try {
+    await storage.append(CONTACTS_KEY, contact);
+    // Awaited on purpose: serverless hosts freeze the function once the
+    // response is sent, so the mail request must complete first. The
+    // complaint / enquiry lands in the shop's inbox with the customer as the
+    // reply-to address, so pressing Reply answers them directly.
+    await sendNotificationEmail(
       contactSubjectLabel(contact.subject) + ' — ' + contact.name + ' (' + contact.contactId + ')',
       buildContactEmailText(contact),
       buildContactEmailHtml(contact),
       { replyTo: contact.email }
     );
     res.status(201).json({ success: true, contactId: contact.contactId });
-  }).catch(function (err) {
+  } catch (err) {
     console.error('Error saving contact:', err);
     res.status(500).json({ error: 'Could not save your message. Please try again.' });
-  });
+  }
 });
 
 // Admin-only: list contact submissions

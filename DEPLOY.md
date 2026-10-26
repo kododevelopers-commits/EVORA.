@@ -87,15 +87,20 @@ later under **evora → Environment**):
 | Key | Value |
 |---|---|
 | `NOTIFY_EMAIL` | `kododevelopers@gmail.com` |
-| `GMAIL_USER` | `kododevelopers@gmail.com` |
-| `GMAIL_APP_PASSWORD` | your 16-character app password, **without spaces** |
+| `BREVO_API_KEY` | from Brevo → SMTP & API → **API Keys** |
+| `BREVO_SENDER_EMAIL` | the address you verified in Brevo |
 | `UPSTASH_REDIS_REST_URL` | from step 1 |
 | `UPSTASH_REDIS_REST_TOKEN` | from step 1 |
 | `ADMIN_API_KEY` | a long random string — use the same one as local so your admin login keeps working |
 | `PUBLIC_BASE_URL` | leave blank for now, set it after the first deploy |
 
-`EMAIL_PROVIDER` and `BREVO_SMTP_HOST`/`PORT` are already set in
-`render.yaml`. Leave `BREVO_*` blank until Brevo is verified (see below).
+`EMAIL_PROVIDER=brevo` is already set in `render.yaml`.
+
+**Why the API key and not SMTP?** Render's free tier blocks outbound traffic
+to SMTP ports 25, 465 and 587
+([changelog](https://render.com/changelog/free-web-services-will-no-longer-allow-outbound-traffic-to-smtp-ports)),
+so `smtp-relay.brevo.com` would just time out. Brevo's HTTP API uses port 443
+and sends the same 300 free emails/day.
 
 **Do not** set `CORS_ORIGINS` — the same service serves the website and the
 API, so they are the same origin and need no CORS at all.
@@ -155,19 +160,17 @@ headroom. If Render suspends the service, switch the ping to daytime only
 
 ---
 
-## Switching to Brevo later
+## Email on Render
 
-No code changes and no redeploy needed if you use the dashboard:
+Email goes out through **Brevo's HTTPS API** (`EMAIL_PROVIDER=brevo` +
+`BREVO_API_KEY`). Nothing else is needed; the API key is what makes it work
+on the free tier, where SMTP ports are closed.
 
-1. In Render → **evora → Environment**, set:
-   - `EMAIL_PROVIDER` = `brevo`
-   - `BREVO_SMTP_USER` = the SMTP login from Brevo
-   - `BREVO_SMTP_KEY` = the SMTP key from Brevo
-   - `BREVO_SENDER_EMAIL` = the address you verified in Brevo
-2. Save. Render restarts the service automatically.
-
-Gmail stays configured as a fallback — you can switch back by setting
-`EMAIL_PROVIDER=gmail`.
+To change the API key later: Render → **evora → Environment** →
+`BREVO_API_KEY` → save. Render restarts the service automatically and the
+next order uses the new key. `BREVO_SENDER_EMAIL` must stay an address
+verified under **Senders & IPs** in Brevo, or sends fail with
+`sender not valid`.
 
 ---
 
@@ -186,6 +189,8 @@ changed.
 | Build fails on `npm ci` | `package-lock.json` missing from the repo — commit it |
 | Orders vanish after a restart | `UPSTASH_*` not set, or set after the deploy |
 | `The Evora backend isn't running` banner | The Render service is asleep (wait a minute) or the deploy failed — check **Logs** |
-| Emails fail with `Invalid login` | `GMAIL_APP_PASSWORD` copied with spaces |
+| Emails time out / `ETIMEDOUT` | SMTP is blocked on the free tier — use `BREVO_API_KEY` (HTTPS API), not the SMTP relay |
+| `Brevo API: Key not found` | `BREVO_API_KEY` is wrong or revoked — create a new key under SMTP & API → API Keys |
+| `sender not valid` | `BREVO_SENDER_EMAIL` is not verified under Senders & IPs |
 | Admin page rejects the key | `ADMIN_API_KEY` on Render differs from the one you typed |
 | 502 / timeout on first visit | Cold start — see step 7 |

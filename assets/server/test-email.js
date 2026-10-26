@@ -98,10 +98,16 @@ async function main() {
     if (process.env.EMAIL_PROVIDER === 'brevo') {
       console.log('');
       console.log('   Brevo-specific:');
-      console.log('   • BREVO_SMTP_USER / BREVO_SMTP_KEY are from SMTP & API > SMTP,');
-      console.log('     not your Brevo email and password');
+      if (process.env.BREVO_API_KEY) {
+        console.log('   • BREVO_API_KEY is wrong, revoked, or lacks access — regenerate it under');
+        console.log('     SMTP & API > API Keys');
+      } else {
+        console.log('   • BREVO_SMTP_USER / BREVO_SMTP_KEY are from SMTP & API > SMTP,');
+        console.log('     not your Brevo email and password');
+        console.log('   • Use BREVO_API_KEY instead if your host blocks SMTP (Render free does)');
+        console.log('   • Use port 465 if 587 is blocked (set BREVO_SMTP_PORT=465)');
+      }
       console.log('   • BREVO_SENDER_EMAIL must be added and verified under Senders & IPs');
-      console.log('   • Use port 465 if 587 is blocked (set BREVO_SMTP_PORT=465)');
     }
   }
   console.log('');

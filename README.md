@@ -120,7 +120,10 @@ The dashboard refreshes itself every 15 seconds.
 
 ## Email notifications
 
-The backend sends real email through Gmail:
+The backend sends real email through Brevo (300/day free), over its HTTPS
+API or SMTP relay — or through Gmail / SendGrid / any SMTP server if you
+prefer. Brevo's HTTPS API is what makes sending work on hosts that block
+SMTP ports, such as Render's free tier.
 
 | Trigger | To | Reply-To |
 |---|---|---|

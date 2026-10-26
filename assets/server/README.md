@@ -205,16 +205,22 @@ To do it by hand instead: open `assets\server\.env` in Notepad and paste the
 1. Create a free account: https://www.brevo.com/ (no credit card).
 2. Add your sending address under **Senders & IPs** and click the link Brevo
    emails you to verify it.
-3. Go to **SMTP & API → SMTP**, copy the **login** and create an **SMTP key**.
-   Neither is your Brevo account email or password.
+3. Brevo dashboard → **SMTP & API**:
+   - **API Keys** tab → **Create a new API key** (preferred) — uses HTTPS,
+     so it also works on hosts that block SMTP, such as Render's free tier.
+   - or **SMTP** tab → copy the **login** and create an **SMTP key** (local
+     machines and paid hosts).
+   Neither the login nor the keys are your Brevo account email or password.
 4. Set in `.env`:
    ```
    EMAIL_PROVIDER=brevo
-   BREVO_SMTP_HOST=smtp-relay.brevo.com
-   BREVO_SMTP_PORT=587
-   BREVO_SMTP_USER=your-smtp-login
-   BREVO_SMTP_KEY=your-smtp-key
+   BREVO_API_KEY=xkeysib-your-api-key      # takes priority over SMTP
    BREVO_SENDER_EMAIL=the-address-you-verified
+   # only if you use the SMTP relay instead:
+   # BREVO_SMTP_HOST=smtp-relay.brevo.com
+   # BREVO_SMTP_PORT=587
+   # BREVO_SMTP_USER=your-smtp-login
+   # BREVO_SMTP_KEY=your-smtp-key
    ```
 5. Check it with `npm run test:email`.
 

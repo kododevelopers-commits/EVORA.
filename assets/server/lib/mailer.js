@@ -38,6 +38,7 @@ const LIVE_ENV_KEYS = [
   'BREVO_SMTP_PORT',
   'BREVO_SMTP_USER',
   'BREVO_SMTP_KEY',
+  'BREVO_API_KEY',
   'BREVO_SENDER_EMAIL',
   'SMTP_HOST',
   'SMTP_PORT',
@@ -151,6 +152,59 @@ function createTransport() {
 }
 
 // ---------------------------------------------------------------------------
+// Brevo over HTTPS (the API, not SMTP)
+// ---------------------------------------------------------------------------
+// Many hosts — Render's free tier among them — block outbound SMTP ports
+// (25, 465, 587). Brevo's HTTP API uses port 443 like any web request, so it
+// works everywhere. It sends the same 300 emails/day on the free plan.
+//
+// Set BREVO_API_KEY (Brevo dashboard > SMTP & API > API Keys) to use it.
+// If only BREVO_SMTP_USER/BREVO_SMTP_KEY are set, the SMTP relay is used.
+// ---------------------------------------------------------------------------
+function brevoApiConfigured() {
+  reloadEmailEnv();
+  return process.env.EMAIL_PROVIDER === 'brevo' && !!process.env.BREVO_API_KEY;
+}
+
+async function sendViaBrevoApi(to, subject, text, html, opts) {
+  reloadEmailEnv();
+  const from = fromAddress();
+  const payload = {
+    sender: { name: from.name, email: from.address },
+    to: [{ email: to }],
+    subject: subject,
+    textContent: text
+  };
+  if (html) payload.htmlContent = html;
+  if (opts.replyTo) payload.replyTo = { email: opts.replyTo };
+
+  const res = await fetch('https://api.brevo.com/v3/smtp/email', {
+    method: 'POST',
+    headers: {
+      accept: 'application/json',
+      'content-type': 'application/json',
+      'api-key': process.env.BREVO_API_KEY
+    },
+    body: JSON.stringify(payload),
+    signal: AbortSignal.timeout(20000)
+  });
+
+  const raw = await res.text();
+  let data = null;
+  try {
+    data = raw ? JSON.parse(raw) : null;
+  } catch (e) {
+    data = { message: raw };
+  }
+
+  if (!res.ok) {
+    const message = (data && (data.message || data.error)) || 'HTTP ' + res.status;
+    throw new Error('Brevo API: ' + message);
+  }
+  return { messageId: data && data.messageId, provider: 'brevo-api' };
+}
+
+// ---------------------------------------------------------------------------
 // Delivery tracking
 // ---------------------------------------------------------------------------
 // A failed email must never be invisible. These counters are exposed through
@@ -182,6 +236,9 @@ function stats() {
   return {
     configured: !!process.env.EMAIL_PROVIDER,
     provider: process.env.EMAIL_PROVIDER || null,
+    mode: process.env.EMAIL_PROVIDER === 'brevo'
+      ? (process.env.BREVO_API_KEY ? 'brevo-api' : 'brevo-smtp')
+      : null,
     from: fromAddress().address,
     store: storeEmail(),
     sent: delivery.sent,
@@ -209,6 +266,21 @@ async function sendEmailTo(to, subject, text, html, options) {
     console.log('📧  No recipient given, skipping email: ' + subject);
     markFailed('no recipient for: ' + subject);
     return { sent: false, reason: 'no-recipient' };
+  }
+
+  // Brevo with an API key goes over HTTPS, which works on hosts that block
+  // SMTP ports (Render free tier, for instance).
+  if (brevoApiConfigured()) {
+    try {
+      const info = await sendViaBrevoApi(to, subject, text, html, opts);
+      console.log('📧  Email sent to ' + to + (opts.replyTo ? ' (reply-to: ' + opts.replyTo + ')' : '') + ' via Brevo API: ' + subject);
+      markSent();
+      return { sent: true, info: info };
+    } catch (err) {
+      console.error('Failed to send email to ' + to + ' via Brevo API:', err.message);
+      markFailed(err.message);
+      return { sent: false, reason: err.message };
+    }
   }
 
   const transporter = createTransport();
@@ -280,16 +352,24 @@ function describeStatus() {
   }
   if (provider === 'brevo') {
     const missing = [];
-    if (!process.env.BREVO_SMTP_USER) missing.push('BREVO_SMTP_USER');
-    if (!process.env.BREVO_SMTP_KEY) missing.push('BREVO_SMTP_KEY');
+    const viaApi = !!process.env.BREVO_API_KEY;
+    if (!viaApi) {
+      if (!process.env.BREVO_SMTP_USER) missing.push('BREVO_SMTP_USER');
+      if (!process.env.BREVO_SMTP_KEY) missing.push('BREVO_SMTP_KEY');
+    }
     if (!process.env.BREVO_SENDER_EMAIL) missing.push('BREVO_SENDER_EMAIL');
     if (missing.length) {
       return [
         '📧  Email: provider=brevo but ' + missing.join(', ') + ' is empty — emails will fail to send.',
-        '    Brevo dashboard > SMTP & API > SMTP: copy the login and create an SMTP key.',
+        '    Brevo dashboard > SMTP & API: create an API key (recommended) or an SMTP key.',
         '    Then add the address under Senders & IPs and put it in BREVO_SENDER_EMAIL.'
       ];
     }
+    return [
+      '📧  Email: provider=brevo via ' + (viaApi ? 'HTTPS API' : 'SMTP relay') + ', sending as ' + fromAddress().address,
+      '    Store inbox (orders + complaints): ' + storeEmail(),
+      '    Customers get a copy of their order confirmation.'
+    ];
   }
   return [
     '📧  Email: provider=' + provider + ', sending as ' + fromAddress().address,

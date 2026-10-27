@@ -7,9 +7,15 @@
 // "the email has no logo" looked like.
 //
 // So the email uses assets/evora-logo.png - a raster render of the very same
-// artwork - embedded as a base64 data URL. A data URL means the image needs
-// no public host: it travels inside the message and shows up wherever the
-// customer opens it.
+// artwork.
+//
+// Where that PNG comes from depends on where the backend runs:
+//   * PUBLIC_BASE_URL set (Netlify)  -> <base>/assets/evora-logo.png
+//   * no PUBLIC_BASE_URL (localhost) -> a base64 data: URL, no host needed
+//
+// The hosted URL is the one that works in Gmail: Gmail already blocks most
+// data: images, which showed up as a broken image with an error. A normal
+// https:// image renders the moment the reader allows images.
 //
 // The PNG is generated from the SVG by tools/render-logo.js.
 // ============================================================================
@@ -81,6 +87,18 @@ function load() {
 
 const loaded = load();
 
+// The deployed site's address, when we know it. PUBLIC_BASE_URL wins; Netlify
+// also injects URL and DEPLOY_PRIME_URL into every function, so production
+// gets the right host even if that variable was never added. Read at render
+// time so a value injected by the host is picked up after this module loaded.
+function publicBase() {
+  const raw = (process.env.PUBLIC_BASE_URL ||
+    process.env.URL ||
+    process.env.DEPLOY_PRIME_URL ||
+    '').trim().replace(/\/+$/, '');
+  return /^https?:\/\//i.test(raw) ? raw : '';
+}
+
 // The logo block that goes at the top of an email. Uses the real artwork when
 // we have it, and falls back to a text wordmark when we do not.
 function logoHtml(options) {
@@ -92,7 +110,11 @@ function logoHtml(options) {
       'Evora<span style="color:' + accent + ';">.</span></div>';
   }
   const width = Math.round(height * aspect);
-  return '<img src="' + dataUrl + '" alt="Evora" width="' + width + '" height="' + height +
+  const base = publicBase();
+  const src = base
+    ? base + '/assets/' + (loaded && loaded.file ? loaded.file : 'evora-logo.png')
+    : dataUrl;
+  return '<img src="' + src + '" alt="Evora" width="' + width + '" height="' + height +
     '" style="display:block; border:0; width:' + width + 'px; height:' + height + 'px; max-width:' +
     (opts.maxWidth || 240) + 'px;">';
 }

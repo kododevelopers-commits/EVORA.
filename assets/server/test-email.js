@@ -45,7 +45,7 @@ const html = [
   '    <tr><td align="center">',
   '      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width:520px; background:#ffffff; border-radius:12px; overflow:hidden;">',
   '        <tr><td style="padding:28px 28px 0 28px;">',
-  '          ' + brand.logoHtml({ height: 40 }) + ',',
+  '          ' + brand.logoHtml({ height: 40 }),
   '        </td></tr>',
   '        <tr><td style="padding:22px 28px 28px 28px;">',
   '          <h1 style="margin:0; font-size:20px; font-weight:700; color:#111827;">Email setup is working</h1>',

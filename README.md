@@ -23,7 +23,7 @@ complaints and email notifications.
 > admin dashboard all work. But `http://localhost:3000` is the one to bookmark,
 > because that server has to be running either way.
 
-Three ways to start the backend, easiest first:
+Two ways to start the backend, easiest first:
 
 ### 1. Double-click `start-evora.cmd`
 
@@ -34,48 +34,7 @@ automatically at http://localhost:3000.
 - If it is already running, it just opens the site again.
 - **Stop it:** click the console window and press `Ctrl+C`, then `Y`.
 
-### 2. Let Windows start it for you (runs forever)
-
-Run this once:
-
-```powershell
-powershell -ExecutionPolicy Bypass -File .\install-autostart.ps1
-```
-
-This adds a Windows scheduled task called **Evora Backend** that:
-
-- starts the backend every time you log in to Windows,
-- restarts it within about 8 seconds if it ever crashes,
-- never times out (no 3-day limit),
-- writes everything to `%LOCALAPPDATA%\Evora\server.log`.
-
-The log is **outside the project folder** on purpose. VS Code's Live Server
-watches the project and reloads the open page whenever a file in it changes —
-if the log lived inside, every request would change the log, every change would
-reload the page, and the page would send more requests. That loop pins the CPU
-and fills the disk. `.vscode/settings.json` also tells Live Server to ignore
-`assets\server\`, so placing an order never reloads the customer's page.
-
-Open the log with `view-log.cmd` in this folder, or:
-
-```powershell
-Get-Content "$env:LOCALAPPDATA\Evora\server.log" -Tail 20
-```
-
-Check on it any time:
-
-```powershell
-Get-ScheduledTask -TaskName 'Evora Backend'
-Get-Content "$env:LOCALAPPDATA\Evora\server.log" -Tail 20
-```
-
-Remove it again:
-
-```powershell
-powershell -ExecutionPolicy Bypass -File .\uninstall-autostart.ps1
-```
-
-### 3. The normal way (a terminal)
+### 2. The normal way (a terminal)
 
 ```powershell
 cd assets\server
@@ -177,9 +136,6 @@ EVORA/
 │       └── data/              <- orders.json / contacts.json
 ├── tools/render-logo.js       <- rebuilds evora-logo.png from the SVG
 ├── start-evora.cmd            <- double-click launcher
-├── view-log.cmd               <- opens the server log in Notepad
-├── install-autostart.ps1      <- run-once: start with Windows
-├── uninstall-autostart.ps1    <- remove the auto-start task
 └── .vscode/settings.json      <- tells Live Server to ignore the backend
 ```
 

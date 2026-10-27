@@ -71,7 +71,7 @@ function reloadEmailEnv() {
 // out to customers, so a customer's "Reply" lands in the right inbox.
 function storeEmail() {
   reloadEmailEnv();
-  return (process.env.NOTIFY_EMAIL || 'kododevelopers@gmail.com').trim();
+  return (process.env.NOTIFY_EMAIL || 'evora.reply@gmail.com').trim();
 }
 
 // The address emails are sent FROM. With Gmail this is the same account as

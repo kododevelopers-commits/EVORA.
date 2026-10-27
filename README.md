@@ -86,9 +86,9 @@ SMTP ports, such as Render's free tier.
 
 | Trigger | To | Reply-To |
 |---|---|---|
-| Contact form / complaint | `kododevelopers@gmail.com` | the customer's email |
-| New order | `kododevelopers@gmail.com` | the customer's email |
-| New order | the customer's email | `kododevelopers@gmail.com` |
+| Contact form / complaint | `evora.reply@gmail.com` | the customer's email |
+| New order | `evora.reply@gmail.com` | the customer's email |
+| New order | the customer's email | `evora.reply@gmail.com` |
 
 So pressing **Reply** in Gmail answers the customer directly, and every
 customer gets their own confirmation.

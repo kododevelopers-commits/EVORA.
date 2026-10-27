@@ -54,7 +54,7 @@ seven, then deploy):
 
 | Key | Value |
 |---|---|
-| `NOTIFY_EMAIL` | `kododevelopers@gmail.com` |
+| `NOTIFY_EMAIL` | `evora.reply@gmail.com` |
 | `BREVO_API_KEY` | from Brevo → SMTP & API → **API Keys** (`xkeysib-…`) |
 | `BREVO_SENDER_EMAIL` | the address verified under Senders & IPs |
 | `UPSTASH_REDIS_REST_URL` | from the Upstash database's **REST API** section |

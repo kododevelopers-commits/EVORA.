@@ -447,7 +447,7 @@ function buildCustomerOrderEmailText(order) {
     '',
     '— Evora',
     '  Modern clothing, made for everyday life.',
-    '  (Build By KODO - kododevelopers@gmail.com)'
+    '  (Build By KODO - evora.reply@gmail.com)'
   ].join('\n');
 }
 

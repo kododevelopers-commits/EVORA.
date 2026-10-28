@@ -1166,7 +1166,8 @@ document.addEventListener('DOMContentLoaded', function () {
   var floatingTop = document.getElementById('floatingTop');
   var floatingSearch = document.getElementById('floatingSearch');
   var menuSearchInput = document.getElementById('menuSearchInput');
-  var searchBarSection = document.querySelector('.search-bar-section');
+  var searchBarSection = document.querySelector('.search-bar-section') ||
+    (menuSearchInput ? menuSearchInput.closest('section') : null);
 
   function syncFloatingVisibility() {
     var show = window.scrollY > 240;
@@ -1175,9 +1176,6 @@ document.addEventListener('DOMContentLoaded', function () {
   }
 
   if (floatingTop) {
-    window.addEventListener('scroll', syncFloatingVisibility, { passive: true });
-    syncFloatingVisibility();
-
     floatingTop.addEventListener('click', function () {
       window.scrollTo({ top: 0, behavior: scrollBehavior() });
     });
@@ -1185,7 +1183,10 @@ document.addEventListener('DOMContentLoaded', function () {
 
   if (floatingSearch) {
     if (!menuSearchInput || !searchBarSection) {
-      floatingSearch.style.display = 'none';
+      // Pages without their own search field send the visitor to the menu.
+      floatingSearch.addEventListener('click', function () {
+        window.location.href = 'menu.html';
+      });
     } else {
       floatingSearch.addEventListener('click', function () {
         var rect = searchBarSection.getBoundingClientRect();
@@ -1197,6 +1198,11 @@ document.addEventListener('DOMContentLoaded', function () {
         }, 380);
       });
     }
+  }
+
+  if (floatingTop || floatingSearch) {
+    window.addEventListener('scroll', syncFloatingVisibility, { passive: true });
+    syncFloatingVisibility();
   }
 
 });

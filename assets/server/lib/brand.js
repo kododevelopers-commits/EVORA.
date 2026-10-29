@@ -104,7 +104,7 @@ function publicBase() {
 function logoHtml(options) {
   const opts = options || {};
   const height = opts.height || 40;
-  const accent = opts.accent || '#e4002b';
+  const accent = opts.accent || '#1f2937';
   if (!dataUrl) {
     return '<div style="font-size:22px; font-weight:700; color:#1f2937; line-height:1;">' +
       'Evora<span style="color:' + accent + ';">.</span></div>';

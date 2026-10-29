@@ -12,7 +12,7 @@
   <meta property="og:image" content="assets/evora-logo.png">
   <meta name="theme-color" content="#1a1a1a">
   <link rel="icon" type="image/svg+xml" href="assets/evora-logo.svg">
-  <link rel="stylesheet" href="style.css?v=32">
+  <link rel="stylesheet" href="style.css?v=33">
 </head>
 <body>
 
@@ -118,7 +118,10 @@
         </div>
 
         <div class="product-buy">
-          <button class="add-btn" id="productAddBtn" aria-label="Add to cart">+</button>
+          <button class="add-btn product-add-btn" id="productAddBtn" aria-label="Add to cart">
+            <span class="pa-plus" aria-hidden="true">+</span>
+            <span class="pa-label">Add to Cart</span>
+          </button>
           <div class="qty-control" id="productQtyControl" style="display:none;">
             <button class="qty-btn qty-minus" type="button" aria-label="Decrease quantity">&minus;</button>
             <span class="qty-value" id="productQtyValue">1</span>

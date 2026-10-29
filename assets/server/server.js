@@ -253,7 +253,7 @@ function buildContactEmailHtml(contact) {
     '?subject=' + encodeURIComponent('Re: Your Evora ' + contactSubjectLabel(contact.subject) + ' (' + contact.contactId + ')');
 
   const isComplaint = contact.subject === 'complaint';
-  const accent = isComplaint ? '#dc2626' : '#e4002b';
+  const accent = '#1f2937';
 
   return [
 '<!DOCTYPE html>',
@@ -361,7 +361,7 @@ rows,
 '            <tr><td style="padding:4px 0; font-size:13px; color:#6b7280;">Subtotal</td><td align="right" style="padding:4px 0; font-size:13px; color:#1f2937;">Rs. ' + order.totals.subtotal.toLocaleString('en-US') + '</td></tr>',
 '            <tr><td style="padding:4px 0; font-size:13px; color:#6b7280;">GST (18%)</td><td align="right" style="padding:4px 0; font-size:13px; color:#1f2937;">Rs. ' + order.totals.gst.toLocaleString('en-US') + '</td></tr>',
 '            <tr><td style="padding:4px 0; font-size:13px; color:#6b7280;">Delivery</td><td align="right" style="padding:4px 0; font-size:13px; color:#1f2937;">Rs. ' + order.totals.deliveryCharge.toLocaleString('en-US') + '</td></tr>',
-'            <tr><td style="padding:8px 0 0 0; font-size:16px; font-weight:700; color:#111827; border-top:2px solid #e5e7eb;">Total</td><td align="right" style="padding:8px 0 0 0; font-size:16px; font-weight:700; color:#e4002b; border-top:2px solid #e5e7eb;">Rs. ' + order.totals.total.toLocaleString('en-US') + '</td></tr>',
+'            <tr><td style="padding:8px 0 0 0; font-size:16px; font-weight:700; color:#111827; border-top:2px solid #e5e7eb;">Total</td><td align="right" style="padding:8px 0 0 0; font-size:16px; font-weight:700; color:#111827; border-top:2px solid #e5e7eb;">Rs. ' + order.totals.total.toLocaleString('en-US') + '</td></tr>',
 '          </table>',
 '        </td></tr>',
 '        <tr><td style="padding:24px 28px 28px 28px;" align="center">',
@@ -529,7 +529,6 @@ function buildCustomerOrderEmailHtml(order) {
               brandHeader,
 '              <div style="font-size:11px; color:#9ca3af; letter-spacing:0.5px; margin-top:6px; text-transform:uppercase;">Order Confirmation</div>',
 '            </td>',
-'            <td align="right" style="vertical-align:middle; font-size:28px; line-height:1;">👕</td>',
 '          </tr></table>',
 '        </td></tr>',
 
@@ -631,14 +630,13 @@ function buildCustomerOrderEmailHtml(order) {
 '              <a href="' + baseUrl + '/?order=' + orderId + '" target="_blank" style="display:inline-block; padding:14px 36px; color:#ffffff; text-decoration:none; font-weight:600; font-size:14px; border-radius:8px;">Track Your Order</a>',
 '            </td>',
 '          </tr></table>',
-'          <p style="margin:14px 0 0 0; color:#9ca3af; font-size:12px;">Questions? Call us at <a href="tel:0334-3745379" style="color:#e4002b; text-decoration:none; font-weight:600;">0334-3745379</a></p>',
+'          <p style="margin:14px 0 0 0; color:#9ca3af; font-size:12px;">Questions? Call us at <a href="tel:0334-3745379" style="color:#1f2937; text-decoration:none; font-weight:600;">0334-3745379</a></p>',
 '        </td></tr>',
 
 '        <!-- Footer -->',
 '        <tr><td style="padding:0 28px 28px 28px; text-align:center;">',
 '          <p style="margin:0; color:#9ca3af; font-size:12px;">Until next time,</p>',
-'          <p style="margin:4px 0 0 0; color:#e4002b; font-size:16px; font-weight:700;">Evora Team</p>',
-'          <p style="margin:14px 0 0 0; color:#cbd5e1; font-size:11px;">This is a portfolio demo &mdash; no real orders are dispatched.</p>',
+'          <p style="margin:4px 0 0 0; color:#1f2937; font-size:16px; font-weight:700;">Evora Team</p>',
 '        </td></tr>',
 
 '      </table>',

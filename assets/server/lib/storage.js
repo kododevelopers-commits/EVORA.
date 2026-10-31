@@ -20,6 +20,11 @@
 //     UPSTASH_REDIS_REST_URL=https://xxxx.upstash.io
 //     UPSTASH_REDIS_REST_TOKEN=xxxx
 //
+// Or, when SUPABASE_URL + SUPABASE_SERVICE_KEY are set, collections live in
+// Postgres tables instead (see supabase-store.js and supabase-schema.sql).
+// Supabase wins when both are configured, so removing those two variables is
+// an instant rollback to Redis.
+//
 // Nothing else in the server needs to know which one is in use.
 //
 // What it gives you:
@@ -27,13 +32,14 @@
 //   - storage.append('orders', item) -> Promise<number>   (push to array)
 //   - storage.update('orders', fn)   -> Promise<array>    (mutate in place)
 //   - storage.save('orders', array)  -> Promise<void>     (overwrite)
-//   - storage.describe()             -> 'local JSON files' | 'Upstash Redis'
+//   - storage.describe()             -> 'local JSON files' | 'Upstash Redis' | 'Supabase Postgres'
 //
 // If the collection doesn't exist yet, it's treated as [].
 // ============================================================================
 
 const fs = require('fs');
 const path = require('path');
+const supabase = require('./supabase-store');
 
 const DATA_DIR = path.join(__dirname, '..', 'data');
 
@@ -62,7 +68,12 @@ function usingRedis() {
   return !!redisConfig();
 }
 
+function usingSupabase() {
+  return supabase.isConfigured();
+}
+
 function describe() {
+  if (usingSupabase()) return 'Supabase Postgres';
   return usingRedis() ? 'Upstash Redis' : 'local JSON files';
 }
 
@@ -177,11 +188,20 @@ function enqueue(name, task) {
 const storage = {
   // Read whatever's stored right now.
   read(name) {
+    if (usingSupabase()) return enqueue(name, () => supabase.read(name));
     return enqueue(name, () => readRaw(name));
   },
 
   // Overwrite the collection with the given array.
   save(name, data) {
+    if (usingSupabase()) {
+      return enqueue(name, () => {
+        if (!Array.isArray(data)) {
+          throw new Error(`storage.save('${name}') expects an array`);
+        }
+        return supabase.save(name, data);
+      });
+    }
     return enqueue(name, async () => {
       if (!Array.isArray(data)) {
         throw new Error(`storage.save('${name}') expects an array`);
@@ -192,6 +212,7 @@ const storage = {
 
   // Load the array, push `item` onto it, save it back, return the new length.
   append(name, item) {
+    if (usingSupabase()) return enqueue(name, () => supabase.append(name, item));
     return enqueue(name, async () => {
       const arr = await readRaw(name);
       arr.push(item);
@@ -203,6 +224,7 @@ const storage = {
   // Load the array, run `mutator(arr)`, save it back, return the new array.
   // `mutator` can mutate the array in place or return a new one.
   update(name, mutator) {
+    if (usingSupabase()) return enqueue(name, () => supabase.update(name, mutator));
     return enqueue(name, async () => {
       const arr = await readRaw(name);
       const result = mutator(arr);
@@ -218,7 +240,8 @@ const storage = {
   // Which backend is active — used for the startup banner and the migration
   // script, never for business logic.
   describe: describe,
-  usingRedis: usingRedis
+  usingRedis: usingRedis,
+  usingSupabase: usingSupabase
 };
 
 module.exports = storage;

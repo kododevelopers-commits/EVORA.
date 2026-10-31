@@ -8,7 +8,8 @@
     "start": "node server.js",
     "dev": "node --watch server.js",
     "test:email": "node test-email.js",
-    "migrate:redis": "node migrate-to-redis.js"
+    "migrate:redis": "node migrate-to-redis.js",
+    "migrate:supabase": "node migrate-to-supabase.js"
   },
   "dependencies": {
     "dotenv": "^16.4.5",

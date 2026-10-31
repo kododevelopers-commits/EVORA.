@@ -88,7 +88,7 @@ button {
   margin: 0 auto;
   padding: 6px 32px;
   font-family: Arial, Helvetica Neue, Helvetica, sans-serif;
-  background-color: rgba(236, 236, 236, 0.72);
+  background-color: rgba(212, 212, 212, 0.82);
   -webkit-backdrop-filter: blur(14px) saturate(150%);
   backdrop-filter: blur(14px) saturate(150%);
   border-radius: 999px;

@@ -486,16 +486,30 @@ function fmtDateTime(iso) {
 // template: header → greeting → green "Order Received" pill → icon rows
 // for order details → items table → dark "Total Paid" bar → CTA button →
 // branded footer.
-function buildCustomerOrderEmailHtml(order) {
+// The public address of the site, for links in outgoing email. VERCEL_URL is
+// deliberately last: it can point at a protected deployment address (Vercel
+// asks the visitor to log in), while the request's own Host header is the
+// public alias the customer actually used.
+function publicBaseFromReq(req) {
+  const explicit = (process.env.PUBLIC_BASE_URL || '').trim().replace(/\/+$/, '');
+  if (explicit) return explicit;
+  const host = (req && req.get) ? (req.get('host') || '') : '';
+  if (!host) return '';
+  const proto = req.protocol || (req.secure ? 'https' : 'http') || 'https';
+  return proto + '://' + host;
+}
+
+function buildCustomerOrderEmailHtml(order, baseOverride) {
   const c = order.customer;
-  const baseUrl = (process.env.PUBLIC_BASE_URL ||
+  const baseUrl = (String(baseOverride || '').trim() ||
+    process.env.PUBLIC_BASE_URL ||
     (process.env.VERCEL_URL ? 'https://' + process.env.VERCEL_URL : '') ||
     'http://localhost:3000').replace(/\/+$/, '');
   const orderId = escHtml(order.orderId);
 
   // Build the brand header — the real logo artwork, or a text wordmark if the
   // artwork could not be loaded.
-  const brandHeader = brand.logoHtml({ height: 46, maxWidth: 260 });
+  const brandHeader = brand.logoHtml({ height: 46, maxWidth: 260, base: baseUrl });
   const name = escHtml(c.name);
   const placed = escHtml(fmtDateTime(order.receivedAt));
   const address = escHtml(c.address + ', ' + c.area);
@@ -822,7 +836,7 @@ app.post('/api/orders', writeLimiter, async function (req, res) {
         order.customer.email,
         'Your Evora order #' + order.orderId + ' is confirmed',
         buildCustomerOrderEmailText(order),
-        buildCustomerOrderEmailHtml(order),
+        buildCustomerOrderEmailHtml(order, publicBaseFromReq(req)),
         { replyTo: STORE_EMAIL() }
       )
     ]);

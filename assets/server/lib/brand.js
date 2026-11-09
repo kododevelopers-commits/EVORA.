@@ -111,7 +111,10 @@ function logoHtml(options) {
       'Evora<span style="color:' + accent + ';">.</span></div>';
   }
   const width = Math.round(height * aspect);
-  const base = publicBase();
+  // opts.base lets the caller override the host (e.g. the request's public
+  // alias) instead of falling back to VERCEL_URL, which can be a protected
+  // deployment address that asks the reader to log in.
+  const base = (opts.base !== undefined ? opts.base : publicBase());
   const src = base
     ? base + '/assets/' + (loaded && loaded.file ? loaded.file : 'evora-logo.png')
     : dataUrl;

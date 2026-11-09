@@ -633,7 +633,7 @@ function buildCustomerOrderEmailHtml(order) {
 '        <tr><td style="padding:0 28px 20px 28px;" align="center">',
 '          <table role="presentation" cellpadding="0" cellspacing="0" border="0"><tr>',
 '            <td align="center" bgcolor="#1f2937" style="border-radius:8px;">',
-'              <a href="' + baseUrl + '/?order=' + orderId + '" target="_blank" style="display:inline-block; padding:14px 36px; color:#ffffff; text-decoration:none; font-weight:600; font-size:14px; border-radius:8px;">Track Your Order</a>',
+'              <a href="' + baseUrl + '/track.html?id=' + orderId + '" target="_blank" style="display:inline-block; padding:14px 36px; color:#ffffff; text-decoration:none; font-weight:600; font-size:14px; border-radius:8px;">Track Your Order</a>',
 '            </td>',
 '          </tr></table>',
 '          <p style="margin:14px 0 0 0; color:#9ca3af; font-size:12px;">Questions? Call us at <a href="tel:0334-3745379" style="color:#1f2937; text-decoration:none; font-weight:600;">0334-3745379</a></p>',

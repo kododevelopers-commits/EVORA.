@@ -17,6 +17,7 @@ const FILES = [
   'menu.html',
   'product.html',
   'checkout.html',
+  'track.html',
   'contact.html',
   'about.html',
   'admin.html',

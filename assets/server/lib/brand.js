@@ -95,6 +95,7 @@ function publicBase() {
   const raw = (process.env.PUBLIC_BASE_URL ||
     process.env.URL ||
     process.env.DEPLOY_PRIME_URL ||
+    (process.env.VERCEL_URL ? 'https://' + process.env.VERCEL_URL : '') ||
     '').trim().replace(/\/+$/, '');
   return /^https?:\/\//i.test(raw) ? raw : '';
 }

@@ -33,6 +33,10 @@ const mailer = require('./lib/mailer');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+// Both Netlify and Vercel sit one proxy hop in front of the function, so trust
+// the first X-Forwarded-For entry to get the real client IP for rate limiting.
+app.set('trust proxy', 1);
+
 // The frontend files (index.html, menu.html, checkout.html, admin.html,
 // style.css, script.js, admin.js, assets/) live TWO folders up from this
 // server/ folder — at the top of the project, with assets/ as a sibling.
@@ -484,7 +488,9 @@ function fmtDateTime(iso) {
 // branded footer.
 function buildCustomerOrderEmailHtml(order) {
   const c = order.customer;
-  const baseUrl = (process.env.PUBLIC_BASE_URL || 'http://localhost:3000').replace(/\/+$/, '');
+  const baseUrl = (process.env.PUBLIC_BASE_URL ||
+    (process.env.VERCEL_URL ? 'https://' + process.env.VERCEL_URL : '') ||
+    'http://localhost:3000').replace(/\/+$/, '');
   const orderId = escHtml(order.orderId);
 
   // Build the brand header — the real logo artwork, or a text wordmark if the

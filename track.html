@@ -472,7 +472,7 @@
   }
 
   function startTracking(id) {
-    currentId = id;
+    currentId = id.trim().toUpperCase();
     lastStatus = null;
     showTracker();
     var url = new URL(window.location.href);
@@ -494,12 +494,15 @@
     $('gateInput').value = currentId;
     showGate();
   });
-  window.addEventListener('focus', function () { if (currentId) load(true); });
+  function isTerminal() {
+    return lastStatus === 'delivered' || lastStatus === 'cancelled';
+  }
+  window.addEventListener('focus', function () { if (currentId && !isTerminal()) load(true); });
   document.addEventListener('visibilitychange', function () {
-    if (document.visibilityState === 'visible' && currentId) load(true);
+    if (document.visibilityState === 'visible' && currentId && !isTerminal()) load(true);
   });
   setInterval(function () {
-    if (currentId && document.visibilityState === 'visible') load(true);
+    if (currentId && !isTerminal() && document.visibilityState === 'visible') load(true);
   }, 20000);
 
   // ---- boot ----

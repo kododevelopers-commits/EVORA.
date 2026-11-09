@@ -3,6 +3,17 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <script>
+    // Confirmation emails sent before the tracker existed link to "/?order=<id>".
+    // Forward those straight to the tracker so the tap always opens that order.
+    (function () {
+      try {
+        var p = new URLSearchParams(window.location.search);
+        var id = (p.get('order') || p.get('id') || '').trim();
+        if (id) window.location.replace('track.html?id=' + encodeURIComponent(id));
+      } catch (e) {}
+    })();
+  </script>
   <title>Evora | Modern Apparel & Everyday Style</title>
   <meta name="description" content="Evora is a modern apparel label — everyday clothing made to last. Shop tees, denim, dresses and accessories with cash on delivery across Pakistan.">
   <meta property="og:type" content="website">

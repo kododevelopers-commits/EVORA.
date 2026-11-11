@@ -52,7 +52,7 @@ Then open http://localhost:3000.
 |---|---|---|
 | Home | `/index.html` | landing page, featured products |
 | Shop | `/menu.html` | the full catalogue, filters, search, cart |
-| Product | `/product.html?slug=classic-crew-neck-tee` | one product, size picker |
+| Product | `/product.html?slug=olive-drape-coord-set` | one product, size picker |
 | Checkout | `/checkout.html` | delivery details + payment method |
 | Contact | `/contact.html` | complaints, order help, general questions |
 | About | `/about.html` | the story |

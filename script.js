@@ -350,11 +350,11 @@ document.addEventListener('DOMContentLoaded', function () {
   } else if (searchInput) {
     // ----- Other pages (e.g. homepage): animated placeholder, submit goes to the menu -----
     var searchSuggestions = [
-      'Classic Crew Neck Tee...',
-      'Floral Maxi Dress...',
-      'Slim Fit Denim Jeans...',
-      'Hooded Pullover Sweatshirt...',
-      'Canvas Tote Bag...'
+      'Olive Drape Co-Ord Set...',
+      'Red Parrot Resort Shirt...',
+      'Grey Raglan Star Tee...',
+      'Brown Wide-Leg Sweatpants...',
+      'Plum Square-Neck Blouse...'
     ];
     var suggestionIndex = 0;
     window.setInterval(function () {
@@ -505,7 +505,7 @@ document.addEventListener('DOMContentLoaded', function () {
   })();
 
   function productImage(name) {
-    return PRODUCT_IMAGES[name] || 'assets/vecteezy_formal-men-s-sky-blue-check-shirt-on-white-background_28629202.JPG';
+    return PRODUCT_IMAGES[name] || 'assets/products/grey-raglan-star-tee.jpg';
   }
 
   // Candidate items offered as cross-sell suggestions in the cart panel,

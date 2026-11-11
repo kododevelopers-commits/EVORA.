@@ -1,0 +1,8 @@
+User-agent: *
+Allow: /
+Disallow: /admin.html
+Disallow: /track.html
+Disallow: /checkout.html
+Disallow: /api/
+
+Sitemap: https://evora-server.vercel.app/sitemap.xml

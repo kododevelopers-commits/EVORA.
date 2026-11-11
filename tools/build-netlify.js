@@ -25,7 +25,9 @@ const FILES = [
   'script.js',
   'admin.js',
   'catalog.js',
-  'api-client.js'
+  'api-client.js',
+  'robots.txt',
+  'sitemap.xml'
 ];
 
 fs.rmSync(DIST, { recursive: true, force: true });

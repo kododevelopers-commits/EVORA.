@@ -400,7 +400,7 @@ function buildCustomerOrderEmailText(order) {
   const placed = new Date(order.receivedAt);
   const placedStr = isNaN(placed.getTime())
     ? order.receivedAt
-    : placed.toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' });
+    : placed.toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short', timeZone: SHOP_TIMEZONE });
 
   // Pad the item lines so the prices line up nicely:
   //   2x Classic Crew Neck Tee ............ Rs. 1,899
@@ -477,15 +477,24 @@ function fmtMoney(n) {
   return Number(n || 0).toLocaleString('en-US');
 }
 
+// Orders are placed in Pakistan but the server (Vercel) runs on UTC, so
+// every human-readable time in an email is rendered in the shop's timezone.
+const SHOP_TIMEZONE = 'Asia/Karachi';
+
 function fmtDateTime(iso) {
   const d = new Date(iso);
   if (isNaN(d.getTime())) return iso;
-  const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-  const pad = function (x) { return String(x).padStart(2, '0'); };
-  const hour12 = ((d.getHours() + 11) % 12) + 1;
-  const ampm = d.getHours() < 12 ? 'AM' : 'PM';
-  return d.getDate() + ' ' + months[d.getMonth()] + ', ' + d.getFullYear() +
-         ' - ' + hour12 + ':' + pad(d.getMinutes()) + ' ' + ampm;
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: SHOP_TIMEZONE,
+    day: 'numeric', month: 'short', year: 'numeric',
+    hour: 'numeric', minute: '2-digit', hour12: true
+  }).formatToParts(d);
+  const get = function (type) {
+    const part = parts.find(function (x) { return x.type === type; });
+    return part ? part.value : '';
+  };
+  return get('day') + ' ' + get('month') + ', ' + get('year') +
+         ' - ' + get('hour') + ':' + get('minute') + ' ' + get('dayPeriod');
 }
 
 // HTML version of the customer confirmation email. Built with table-based

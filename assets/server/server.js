@@ -112,7 +112,7 @@ app.use(function (req, res, next) {
     res.set('Access-Control-Allow-Origin', origin);
     res.set('Vary', 'Origin');
     res.set('Access-Control-Allow-Methods', 'GET,POST,PATCH,OPTIONS');
-    res.set('Access-Control-Allow-Headers', 'Content-Type,x-admin-key');
+    res.set('Access-Control-Allow-Headers', 'Content-Type,x-admin-key,x-admin-email');
   }
   // Pre-flight requests never carry a body — answer them here.
   if (req.method === 'OPTIONS') {

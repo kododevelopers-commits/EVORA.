@@ -1,18 +1,26 @@
 // ============================================================================
 // admin.js — small dashboard for viewing orders and contact submissions
 // ----------------------------------------------------------------------------
-// Runs on /admin.html. Reads the admin key from sessionStorage, calls the
-// protected /api/stats, /api/orders, /api/contacts endpoints, and lets the
-// admin update an order's status with a dropdown.
+// Runs on /admin.html. Sign-in is two steps: an allowed account email, then
+// the admin API key as the password. The pair is kept as a session object in
+// sessionStorage (or localStorage with "Remember me"), and sent on every
+// protected request as x-admin-email + x-admin-key.
 // ============================================================================
 
 (function () {
-  var SESSION_KEY = 'kbAdminKey';
+  var SESSION_KEY = 'evoraAdminSession';
+  var OWNER_EMAIL = 'evora.reply@gmail.com';
 
   var els = {
     gate:        document.getElementById('gate'),
+    emailForm:   document.getElementById('emailForm'),
+    adminEmail:  document.getElementById('adminEmail'),
+    emailErr:    document.getElementById('emailErr'),
     loginForm:   document.getElementById('loginForm'),
+    emailChip:   document.getElementById('emailChip'),
+    changeEmail: document.getElementById('changeEmail'),
     apiKey:      document.getElementById('apiKey'),
+    rememberMe:  document.getElementById('rememberMe'),
     loginErr:    document.getElementById('loginErr'),
     dashboard:   document.getElementById('dashboard'),
     status:      document.getElementById('statusIndicator'),
@@ -25,7 +33,15 @@
     refreshBtn:  document.getElementById('refreshBtn'),
     ordersBody:  document.getElementById('ordersBody'),
     contactsBody: document.getElementById('contactsBody'),
-    toast:       document.getElementById('toast')
+    toast:       document.getElementById('toast'),
+    accountWrap:  document.getElementById('accountWrap'),
+    accountBtn:   document.getElementById('accountBtn'),
+    accountAvatar: document.getElementById('accountAvatar'),
+    accountEmail: document.getElementById('accountEmail'),
+    accountMenu:  document.getElementById('accountMenu'),
+    menuEmail:    document.getElementById('menuEmail'),
+    menuRole:     document.getElementById('menuRole'),
+    logoutBtn:    document.getElementById('logoutBtn')
   };
 
   // -------- Toast --------
@@ -41,56 +57,153 @@
   }
 
   // -------- Auth --------
-  function getKey() { return sessionStorage.getItem(SESSION_KEY) || ''; }
-  function setKey(k) { sessionStorage.setItem(SESSION_KEY, k); }
-  function clearKey() { sessionStorage.removeItem(SESSION_KEY); }
-
-  function showDashboard() {
-    els.gate.style.display = 'none';
-    els.dashboard.style.display = '';
+  // A session is { email, key }. "Remember me" stores it in localStorage so
+  // the next visit on this device skips the gate; otherwise sessionStorage,
+  // which dies with the tab.
+  function readSession(store) {
+    try {
+      var raw = store.getItem(SESSION_KEY);
+      if (!raw) return null;
+      var s = JSON.parse(raw);
+      if (s && s.email && s.key) return s;
+    } catch (e) { /* corrupt entry — treat as logged out */ }
+    return null;
   }
-  function showGate(errorMsg) {
+  function getSession() {
+    return readSession(sessionStorage) || readSession(localStorage);
+  }
+  function setSession(email, key, remember) {
+    clearSession();
+    var raw = JSON.stringify({ email: email, key: key });
+    if (remember) localStorage.setItem(SESSION_KEY, raw);
+    else sessionStorage.setItem(SESSION_KEY, raw);
+  }
+  function clearSession() {
+    sessionStorage.removeItem(SESSION_KEY);
+    localStorage.removeItem(SESSION_KEY);
+  }
+  function getEmail() { var s = getSession(); return s ? s.email : ''; }
+  function getKey() { var s = getSession(); return s ? s.key : ''; }
+
+  var pendingEmail = '';
+
+  function showGateStep(step) {
+    els.emailForm.style.display = step === 1 ? '' : 'none';
+    els.loginForm.style.display = step === 2 ? '' : 'none';
+    if (step === 2) els.emailChip.textContent = pendingEmail;
+  }
+
+  function showGate(errorMsg, errFor) {
     els.dashboard.style.display = 'none';
+    els.accountWrap.style.display = 'none';
     els.gate.style.display = '';
+    showGateStep(pendingEmail ? 2 : 1);
+    els.emailErr.style.display = 'none';
+    els.loginErr.style.display = 'none';
     if (errorMsg) {
-      els.loginErr.textContent = errorMsg;
-      els.loginErr.style.display = '';
-    } else {
-      els.loginErr.style.display = 'none';
+      var box = errFor === 'email' ? els.emailErr : els.loginErr;
+      box.textContent = errorMsg;
+      box.style.display = '';
     }
   }
 
+  function renderAccount() {
+    var email = getEmail();
+    els.accountAvatar.textContent = (email.charAt(0) || '?').toUpperCase();
+    els.accountEmail.textContent = email;
+    els.menuEmail.textContent = email;
+    els.menuRole.textContent = email === OWNER_EMAIL ? 'Owner' : 'Admin';
+  }
+
+  function enterDashboard() {
+    els.gate.style.display = 'none';
+    els.dashboard.style.display = '';
+    renderAccount();
+    els.accountWrap.style.display = '';
+    loadAll();
+  }
+
+  // Step 1 — collect the email. Whether it is allowed is decided by the
+  // server when the password goes in with it.
+  els.emailForm.addEventListener('submit', function (e) {
+    e.preventDefault();
+    var email = els.adminEmail.value.trim().toLowerCase();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      els.emailErr.textContent = 'Enter a valid email address.';
+      els.emailErr.style.display = '';
+      return;
+    }
+    pendingEmail = email;
+    els.emailErr.style.display = 'none';
+    els.loginErr.style.display = 'none';
+    showGateStep(2);
+    els.apiKey.focus();
+  });
+
+  els.changeEmail.addEventListener('click', function () {
+    pendingEmail = '';
+    els.loginErr.style.display = 'none';
+    showGateStep(1);
+    els.adminEmail.focus();
+  });
+
+  // Step 2 — email + key go to the server; it decides who gets in.
   els.loginForm.addEventListener('submit', function (e) {
     e.preventDefault();
     var key = els.apiKey.value.trim();
-    if (!key) return;
-    setKey(key);
-    // Probe with a tiny request to verify the key is valid.
-    EVORA_API.fetch('/api/stats', { headers: { 'x-admin-key': key } })
+    if (!key || !pendingEmail) return;
+    EVORA_API.fetch('/api/stats', {
+      headers: { 'x-admin-key': key, 'x-admin-email': pendingEmail }
+    })
       .then(function (r) {
-        if (r.status === 401) throw new Error('Wrong key — try again.');
+        if (r.status === 403) throw new Error('This email is not allowed to access the admin panel.');
+        if (r.status === 401) throw new Error('Wrong password — try again.');
         if (r.status === 503) throw new Error('Server has no ADMIN_API_KEY configured.');
         if (!r.ok) throw new Error('Server returned ' + r.status);
-        showDashboard();
-        loadAll();
+        setSession(pendingEmail, key, els.rememberMe.checked);
+        enterDashboard();
       })
       .catch(function (err) {
-        clearKey();
+        clearSession();
         var msg = (err && err.message === 'backend-not-found')
           ? "The Evora backend isn't running. Start it by double-clicking start-evora.cmd in the project folder, then try again."
           : err.message;
-        showGate(msg);
+        showGate(msg, 'password');
       });
+  });
+
+  // -------- Account menu --------
+  els.accountBtn.addEventListener('click', function (e) {
+    e.stopPropagation();
+    els.accountMenu.hidden = !els.accountMenu.hidden;
+    els.accountBtn.setAttribute('aria-expanded', String(!els.accountMenu.hidden));
+  });
+  document.addEventListener('click', function () {
+    els.accountMenu.hidden = true;
+    els.accountBtn.setAttribute('aria-expanded', 'false');
+  });
+  els.logoutBtn.addEventListener('click', function () {
+    clearSession();
+    pendingEmail = '';
+    els.apiKey.value = '';
+    els.rememberMe.checked = false;
+    els.accountMenu.hidden = true;
+    allOrders = [];
+    showGate();
   });
 
   // -------- API --------
   function api(path, opts) {
     opts = opts || {};
-    var headers = Object.assign({ 'x-admin-key': getKey() }, opts.headers || {});
+    var headers = Object.assign({ 'x-admin-key': getKey(), 'x-admin-email': getEmail() }, opts.headers || {});
     if (opts.body && !headers['Content-Type']) headers['Content-Type'] = 'application/json';
     return EVORA_API.fetch(path, Object.assign({}, opts, { headers: headers })).then(function (r) {
-      if (r.status === 401) {
-        showGate('Session expired — please sign in again.');
+      if (r.status === 401 || r.status === 403) {
+        pendingEmail = getEmail();
+        clearSession();
+        showGate(r.status === 403
+          ? 'This email is not allowed to access the admin panel.'
+          : 'Session expired — please sign in again.', 'password');
         throw new Error('Unauthorized');
       }
       if (!r.ok) {
@@ -400,10 +513,9 @@
   }, 15000);
 
   // -------- Boot --------
-  if (getKey()) {
-    // We have a stored key — try it
-    showDashboard();
-    loadAll();
+  if (getSession()) {
+    pendingEmail = getEmail();
+    enterDashboard();
   } else {
     showGate();
   }

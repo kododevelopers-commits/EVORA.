@@ -130,6 +130,12 @@ app.use('/assets/server', function (req, res) {
   res.status(404).type('text/plain').send('Not found');
 });
 
+app.get('/', function (req, res, next) {
+  const id = (req.query.order || req.query.id || '').trim();
+  if (id) return res.redirect('/track.html?id=' + encodeURIComponent(id));
+  next();
+});
+
 app.use(express.static(SITE_ROOT, { dotfiles: 'ignore' })); // serves your existing HTML/CSS/JS/assets
 
 // A simple request logger so you can see traffic as it happens. Skips the
@@ -246,8 +252,9 @@ function contactSubjectLabel(subject) {
 // Store-facing email for a complaint or enquiry. The customer is set as the
 // reply-to address, and their details are repeated in the body, so the shop
 // can answer straight from their inbox without opening the dashboard.
-function buildContactEmailHtml(contact) {
+function buildContactEmailHtml(contact, baseOverride) {
   const name = escHtml(contact.name);
+  const baseUrl = emailBase(baseOverride);
   const email = escHtml(contact.email);
   const phone = escHtml(contact.phone || 'Not provided');
   const label = escHtml(contactSubjectLabel(contact.subject));
@@ -257,7 +264,7 @@ function buildContactEmailHtml(contact) {
     '?subject=' + encodeURIComponent('Re: Your Evora ' + contactSubjectLabel(contact.subject) + ' (' + contact.contactId + ')');
 
   const isComplaint = contact.subject === 'complaint';
-  const accent = '#1f2937';
+  const accent = '#1a1a1a';
 
   return [
 '<!DOCTYPE html>',
@@ -267,33 +274,33 @@ function buildContactEmailHtml(contact) {
 '<meta name="viewport" content="width=device-width, initial-scale=1">',
 '<title>' + label + ' from ' + name + '</title>',
 '</head>',
-'<body style="margin:0; padding:0; background:#f4f4f5; font-family: -apple-system, BlinkMacSystemFont, \'Segoe UI\', Arial, sans-serif; color:#1f2937;">',
+'<body style="margin:0; padding:0; background:#f4f4f5; font-family: Arial, Helvetica Neue, Helvetica, sans-serif; color:#1a1a1a;">',
 '  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#f4f4f5; padding:32px 16px;">',
 '    <tr><td align="center">',
 '      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width:560px; background:#ffffff; border-radius:12px; overflow:hidden; box-shadow:0 1px 4px rgba(0,0,0,0.06);">',
 '        <tr><td style="padding:28px 28px 0 28px;">',
-'          ' + brand.logoHtml({ height: 40, accent: accent }),
+'          ' + brand.logoHtml({ height: 40, accent: accent, base: baseUrl }),
 '          <div style="font-size:11px; color:#9ca3af; letter-spacing:0.5px; margin-top:6px; text-transform:uppercase;">' + (isComplaint ? 'Customer complaint' : 'Customer message') + '</div>',
 '        </td></tr>',
 '        <tr><td style="padding:24px 28px 0 28px;">',
-'          <h1 style="margin:0; font-size:22px; font-weight:700; color:#111827;">' + label + ' from ' + name + '</h1>',
+'          <h1 style="margin:0; font-size:22px; font-weight:700; color:#1a1a1a;">' + label + ' from ' + name + '</h1>',
 '          <p style="margin:8px 0 0 0; color:#6b7280; font-size:13px; line-height:1.5;">Reference: ' + ref + '</p>',
 '        </td></tr>',
 '        <tr><td style="padding:20px 28px 0 28px;">',
 '          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#f9fafb; border-radius:8px; padding:16px;">',
-'            <tr><td style="padding:3px 0; font-size:12px; color:#6b7280;">Email</td><td align="right" style="padding:3px 0; font-size:13px; color:#1f2937; font-weight:600;">' + email + '</td></tr>',
-'            <tr><td style="padding:3px 0; font-size:12px; color:#6b7280;">Phone</td><td align="right" style="padding:3px 0; font-size:13px; color:#1f2937; font-weight:600;">' + phone + '</td></tr>',
-'            <tr><td style="padding:3px 0; font-size:12px; color:#6b7280;">Type</td><td align="right" style="padding:3px 0; font-size:13px; color:#1f2937; font-weight:600;">' + label + '</td></tr>',
+'            <tr><td style="padding:3px 0; font-size:12px; color:#6b7280;">Email</td><td align="right" style="padding:3px 0; font-size:13px; color:#1a1a1a; font-weight:600;">' + email + '</td></tr>',
+'            <tr><td style="padding:3px 0; font-size:12px; color:#6b7280;">Phone</td><td align="right" style="padding:3px 0; font-size:13px; color:#1a1a1a; font-weight:600;">' + phone + '</td></tr>',
+'            <tr><td style="padding:3px 0; font-size:12px; color:#6b7280;">Type</td><td align="right" style="padding:3px 0; font-size:13px; color:#1a1a1a; font-weight:600;">' + label + '</td></tr>',
 '          </table>',
 '        </td></tr>',
 '        <tr><td style="padding:20px 28px 0 28px;">',
 '          <div style="font-size:11px; color:#9ca3af; letter-spacing:1.2px; font-weight:600; padding-bottom:8px;">THEIR MESSAGE</div>',
-'          <div style="font-size:14px; color:#1f2937; line-height:1.6; white-space:normal;">' + message + '</div>',
+'          <div style="font-size:14px; color:#1a1a1a; line-height:1.6; white-space:normal;">' + message + '</div>',
 '        </td></tr>',
 '        <tr><td style="padding:24px 28px 28px 28px;" align="center">',
 '          <table role="presentation" cellpadding="0" cellspacing="0" border="0"><tr>',
-'            <td align="center" bgcolor="#1f2937" style="border-radius:8px;">',
-'              <a href="' + replyHref + '" style="display:inline-block; padding:14px 32px; color:#ffffff; text-decoration:none; font-weight:600; font-size:14px; border-radius:8px;">Reply to ' + name + '</a>',
+'            <td align="center" bgcolor="#1a1a1a" style="border-radius:999px;">',
+'              <a href="' + replyHref + '" style="display:inline-block; padding:14px 32px; color:#ffffff; text-decoration:none; font-weight:600; font-size:14px; border-radius:999px;">Reply to ' + name + '</a>',
 '            </td>',
 '          </tr></table>',
 '          <p style="margin:14px 0 0 0; color:#9ca3af; font-size:12px;">Just hit Reply on this email — it goes straight to ' + email + '.</p>',
@@ -309,8 +316,9 @@ function buildContactEmailHtml(contact) {
 // Store-facing order notification. Like the complaint email it is addressed
 // to the shop with the customer as reply-to, and it repeats the customer's
 // contact details so a reply can be written without opening the dashboard.
-function buildOrderEmailHtml(order) {
+function buildOrderEmailHtml(order, baseOverride) {
   const c = order.customer;
+  const baseUrl = emailBase(baseOverride);
   const orderId = escHtml(order.orderId);
   const name = escHtml(c.name);
   const email = escHtml(c.email);
@@ -323,8 +331,8 @@ function buildOrderEmailHtml(order) {
 
   const rows = order.items.map(function (it) {
     return '            <tr>' +
-      '              <td style="padding:8px 0; font-size:13px; color:#1f2937; border-bottom:1px solid #e5e7eb;">' + escHtml(it.qty) + ' &times; ' + escHtml(it.name) + '</td>' +
-      '              <td align="right" style="padding:8px 0; font-size:13px; color:#1f2937; font-weight:600; border-bottom:1px solid #e5e7eb;">Rs. ' + (it.qty * it.price).toLocaleString('en-US') + '</td>' +
+      '              <td style="padding:8px 0; font-size:13px; color:#1a1a1a; border-bottom:1px solid #e5e7eb;">' + escHtml(it.qty) + ' &times; ' + escHtml(it.name) + '</td>' +
+      '              <td align="right" style="padding:8px 0; font-size:13px; color:#1a1a1a; font-weight:600; border-bottom:1px solid #e5e7eb;">Rs. ' + (it.qty * it.price).toLocaleString('en-US') + '</td>' +
       '            </tr>';
   }).join('\n');
 
@@ -336,24 +344,24 @@ function buildOrderEmailHtml(order) {
 '<meta name="viewport" content="width=device-width, initial-scale=1">',
 '<title>New order ' + orderId + '</title>',
 '</head>',
-'<body style="margin:0; padding:0; background:#f4f4f5; font-family: -apple-system, BlinkMacSystemFont, \'Segoe UI\', Arial, sans-serif; color:#1f2937;">',
+'<body style="margin:0; padding:0; background:#f4f4f5; font-family: Arial, Helvetica Neue, Helvetica, sans-serif; color:#1a1a1a;">',
 '  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#f4f4f5; padding:32px 16px;">',
 '    <tr><td align="center">',
 '      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width:560px; background:#ffffff; border-radius:12px; overflow:hidden; box-shadow:0 1px 4px rgba(0,0,0,0.06);">',
 '        <tr><td style="padding:28px 28px 0 28px;">',
-'          ' + brand.logoHtml({ height: 40 }),
+'          ' + brand.logoHtml({ height: 40, base: baseUrl }),
 '          <div style="font-size:11px; color:#9ca3af; letter-spacing:0.5px; margin-top:6px; text-transform:uppercase;">New order</div>',
 '        </td></tr>',
 '        <tr><td style="padding:24px 28px 0 28px;">',
-'          <h1 style="margin:0; font-size:22px; font-weight:700; color:#111827;">Order ' + orderId + '</h1>',
+'          <h1 style="margin:0; font-size:22px; font-weight:700; color:#1a1a1a;">Order ' + orderId + '</h1>',
 '          <p style="margin:8px 0 0 0; color:#6b7280; font-size:13px;">Placed ' + placed + ' &middot; ' + method + '</p>',
 '        </td></tr>',
 '        <tr><td style="padding:20px 28px 0 28px;">',
 '          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#f9fafb; border-radius:8px; padding:16px;">',
-'            <tr><td style="padding:3px 0; font-size:12px; color:#6b7280;">Customer</td><td align="right" style="padding:3px 0; font-size:13px; color:#1f2937; font-weight:600;">' + name + '</td></tr>',
-'            <tr><td style="padding:3px 0; font-size:12px; color:#6b7280;">Email</td><td align="right" style="padding:3px 0; font-size:13px; color:#1f2937; font-weight:600;">' + email + '</td></tr>',
-'            <tr><td style="padding:3px 0; font-size:12px; color:#6b7280;">Phone</td><td align="right" style="padding:3px 0; font-size:13px; color:#1f2937; font-weight:600;">' + phone + '</td></tr>',
-'            <tr><td style="padding:3px 0; font-size:12px; color:#6b7280;">Address</td><td align="right" style="padding:3px 0; font-size:13px; color:#1f2937; font-weight:600;">' + address + '</td></tr>',
+'            <tr><td style="padding:3px 0; font-size:12px; color:#6b7280;">Customer</td><td align="right" style="padding:3px 0; font-size:13px; color:#1a1a1a; font-weight:600;">' + name + '</td></tr>',
+'            <tr><td style="padding:3px 0; font-size:12px; color:#6b7280;">Email</td><td align="right" style="padding:3px 0; font-size:13px; color:#1a1a1a; font-weight:600;">' + email + '</td></tr>',
+'            <tr><td style="padding:3px 0; font-size:12px; color:#6b7280;">Phone</td><td align="right" style="padding:3px 0; font-size:13px; color:#1a1a1a; font-weight:600;">' + phone + '</td></tr>',
+'            <tr><td style="padding:3px 0; font-size:12px; color:#6b7280;">Address</td><td align="right" style="padding:3px 0; font-size:13px; color:#1a1a1a; font-weight:600;">' + address + '</td></tr>',
 '          </table>',
 '        </td></tr>',
 '        <tr><td style="padding:20px 28px 0 28px;">',
@@ -362,16 +370,16 @@ function buildOrderEmailHtml(order) {
 rows,
 '          </table>',
 '          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="border-collapse:collapse; margin-top:12px;">',
-'            <tr><td style="padding:4px 0; font-size:13px; color:#6b7280;">Subtotal</td><td align="right" style="padding:4px 0; font-size:13px; color:#1f2937;">Rs. ' + order.totals.subtotal.toLocaleString('en-US') + '</td></tr>',
-'            <tr><td style="padding:4px 0; font-size:13px; color:#6b7280;">GST (18%)</td><td align="right" style="padding:4px 0; font-size:13px; color:#1f2937;">Rs. ' + order.totals.gst.toLocaleString('en-US') + '</td></tr>',
-'            <tr><td style="padding:4px 0; font-size:13px; color:#6b7280;">Delivery</td><td align="right" style="padding:4px 0; font-size:13px; color:#1f2937;">Rs. ' + order.totals.deliveryCharge.toLocaleString('en-US') + '</td></tr>',
-'            <tr><td style="padding:8px 0 0 0; font-size:16px; font-weight:700; color:#111827; border-top:2px solid #e5e7eb;">Total</td><td align="right" style="padding:8px 0 0 0; font-size:16px; font-weight:700; color:#111827; border-top:2px solid #e5e7eb;">Rs. ' + order.totals.total.toLocaleString('en-US') + '</td></tr>',
+'            <tr><td style="padding:4px 0; font-size:13px; color:#6b7280;">Subtotal</td><td align="right" style="padding:4px 0; font-size:13px; color:#1a1a1a;">Rs. ' + order.totals.subtotal.toLocaleString('en-US') + '</td></tr>',
+'            <tr><td style="padding:4px 0; font-size:13px; color:#6b7280;">GST (18%)</td><td align="right" style="padding:4px 0; font-size:13px; color:#1a1a1a;">Rs. ' + order.totals.gst.toLocaleString('en-US') + '</td></tr>',
+'            <tr><td style="padding:4px 0; font-size:13px; color:#6b7280;">Delivery</td><td align="right" style="padding:4px 0; font-size:13px; color:#1a1a1a;">Rs. ' + order.totals.deliveryCharge.toLocaleString('en-US') + '</td></tr>',
+'            <tr><td style="padding:8px 0 0 0; font-size:16px; font-weight:700; color:#1a1a1a; border-top:2px solid #e5e7eb;">Total</td><td align="right" style="padding:8px 0 0 0; font-size:16px; font-weight:700; color:#1a1a1a; border-top:2px solid #e5e7eb;">Rs. ' + order.totals.total.toLocaleString('en-US') + '</td></tr>',
 '          </table>',
 '        </td></tr>',
 '        <tr><td style="padding:24px 28px 28px 28px;" align="center">',
 '          <table role="presentation" cellpadding="0" cellspacing="0" border="0"><tr>',
-'            <td align="center" bgcolor="#1f2937" style="border-radius:8px;">',
-'              <a href="' + replyHref + '" style="display:inline-block; padding:14px 32px; color:#ffffff; text-decoration:none; font-weight:600; font-size:14px; border-radius:8px;">Reply to ' + name + '</a>',
+'            <td align="center" bgcolor="#1a1a1a" style="border-radius:999px;">',
+'              <a href="' + replyHref + '" style="display:inline-block; padding:14px 32px; color:#ffffff; text-decoration:none; font-weight:600; font-size:14px; border-radius:999px;">Reply to ' + name + '</a>',
 '            </td>',
 '          </tr></table>',
 '          <p style="margin:14px 0 0 0; color:#9ca3af; font-size:12px;">Just hit Reply on this email — it goes straight to ' + email + '.</p>',
@@ -499,12 +507,18 @@ function publicBaseFromReq(req) {
   return proto + '://' + host;
 }
 
-function buildCustomerOrderEmailHtml(order, baseOverride) {
-  const c = order.customer;
-  const baseUrl = (String(baseOverride || '').trim() ||
+// Resolve the site address used inside an email: the caller's override, then
+// PUBLIC_BASE_URL, then VERCEL_URL as a last resort.
+function emailBase(baseOverride) {
+  return (String(baseOverride || '').trim() ||
     process.env.PUBLIC_BASE_URL ||
     (process.env.VERCEL_URL ? 'https://' + process.env.VERCEL_URL : '') ||
     'http://localhost:3000').replace(/\/+$/, '');
+}
+
+function buildCustomerOrderEmailHtml(order, baseOverride) {
+  const c = order.customer;
+  const baseUrl = emailBase(baseOverride);
   const orderId = escHtml(order.orderId);
 
   // Build the brand header — the real logo artwork, or a text wordmark if the
@@ -519,11 +533,11 @@ function buildCustomerOrderEmailHtml(order, baseOverride) {
   // Items table rows
   const itemsRows = order.items.map(function (it) {
     return '<tr>' +
-      '<td style="padding:10px 0; font-size:14px; color:#1f2937; border-bottom:1px solid #f1f2f4;">' +
+      '<td style="padding:10px 0; font-size:14px; color:#1a1a1a; border-bottom:1px solid #f1f2f4;">' +
         '<div style="font-weight:600;">' + escHtml(it.name) + '</div>' +
         '<div style="font-size:12px; color:#9ca3af;">Qty ' + escHtml(it.qty) + '</div>' +
       '</td>' +
-      '<td align="right" style="padding:10px 0; font-size:14px; color:#1f2937; font-weight:600; border-bottom:1px solid #f1f2f4;">' +
+      '<td align="right" style="padding:10px 0; font-size:14px; color:#1a1a1a; font-weight:600; border-bottom:1px solid #f1f2f4;">' +
         'Rs. ' + fmtMoney(it.qty * it.price) +
       '</td>' +
     '</tr>';
@@ -537,61 +551,58 @@ function buildCustomerOrderEmailHtml(order, baseOverride) {
 '<meta name="viewport" content="width=device-width, initial-scale=1">',
 '<title>Order Confirmation</title>',
 '</head>',
-'<body style="margin:0; padding:0; background:#f4f4f5; font-family: -apple-system, BlinkMacSystemFont, \'Segoe UI\', Arial, sans-serif; color:#1f2937;">',
+'<body style="margin:0; padding:0; background:#f4f4f5; font-family: Arial, Helvetica Neue, Helvetica, sans-serif; color:#1a1a1a;">',
 '  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#f4f4f5; padding:32px 16px;">',
 '    <tr><td align="center">',
-'      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width:560px; background:#ffffff; border-radius:12px; overflow:hidden; box-shadow:0 1px 4px rgba(0,0,0,0.06);">',
+'      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width:560px; background:#ffffff; border-radius:18px; overflow:hidden; border:1px solid #ececec;">',
 
 '        <!-- Header -->',
-'        <tr><td style="padding:28px 28px 0 28px;">',
+'        <tr><td style="padding:28px 28px 20px 28px; border-bottom:1px solid #f1f1f1;">',
 '          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr>',
 '            <td style="vertical-align:middle;">',
               brandHeader,
-'              <div style="font-size:11px; color:#9ca3af; letter-spacing:0.5px; margin-top:6px; text-transform:uppercase;">Order Confirmation</div>',
+'              <div style="font-size:10px; color:#9ca3af; letter-spacing:1.6px; margin-top:8px; text-transform:uppercase; font-weight:700;">Order Confirmation</div>',
 '            </td>',
 '          </tr></table>',
 '        </td></tr>',
 
 '        <!-- Greeting -->',
 '        <tr><td style="padding:28px 28px 8px 28px;">',
-'          <h1 style="margin:0; font-size:26px; font-weight:700; color:#111827;">Hey ' + name + ',</h1>',
+'          <h1 style="margin:0; font-size:26px; font-weight:700; color:#1a1a1a; letter-spacing:-0.3px;">Hey ' + name + ',</h1>',
 '          <p style="margin:8px 0 0 0; color:#6b7280; font-size:14px; line-height:1.5;">Thanks for your order! We\'ve received it at Evora and it\'s being prepared for dispatch.</p>',
 '        </td></tr>',
 
-'        <!-- Green status pill -->',
+'        <!-- Status band -->',
 '        <tr><td style="padding:16px 28px;">',
-'          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#ecfdf5; border-radius:8px;"><tr>',
-'            <td style="padding:14px 18px;">',
+'          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#f5f5f5; border-radius:12px;"><tr>',
+'            <td style="padding:12px 16px;">',
 '              <table role="presentation" cellpadding="0" cellspacing="0" border="0"><tr>',
-'                <td style="width:28px; height:28px; background:#10b981; border-radius:50%; text-align:center; vertical-align:middle; color:#ffffff; font-weight:700; font-size:14px; line-height:28px;">&#10003;</td>',
-'                <td style="padding-left:12px; color:#065f46; font-weight:600; font-size:15px;">Order Received</td>',
+'                <td style="width:24px; height:24px; background:#1a1a1a; border-radius:50%; text-align:center; vertical-align:middle; color:#ffffff; font-weight:700; font-size:12px; line-height:24px;">&#10003;</td>',
+'                <td style="padding-left:10px; color:#1a1a1a; font-weight:700; font-size:12px; letter-spacing:0.8px; text-transform:uppercase;">Order Received</td>',
 '              </tr></table>',
 '            </td>',
 '          </tr></table>',
 '        </td></tr>',
 
-'        <!-- Order details with icons -->',
+'        <!-- Order details -->',
 '        <tr><td style="padding:8px 28px 4px 28px;">',
-'          <div style="font-size:11px; color:#9ca3af; letter-spacing:1.2px; font-weight:600; padding:12px 0 8px 0;">ORDER DETAILS</div>',
+'          <div style="font-size:10px; color:#9ca3af; letter-spacing:1.6px; font-weight:700; padding:12px 0 6px 0; text-transform:uppercase;">Order Details</div>',
 '          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">',
 '            <tr>',
-'              <td style="padding:8px 0; font-size:16px; color:#6b7280; width:24px; vertical-align:top; line-height:1.4;">📋</td>',
-'              <td style="padding:8px 0; font-size:13px; color:#1f2937; vertical-align:top;">',
-'                <div style="color:#9ca3af; font-size:10px; letter-spacing:0.8px; font-weight:600; text-transform:uppercase;">Order ID</div>',
-'                <div style="font-weight:600; font-family:ui-monospace, SFMono-Regular, Menlo, monospace; font-size:14px;">' + orderId + '</div>',
+'              <td style="padding:10px 0; border-bottom:1px solid #f1f1f1; font-size:13px; color:#1a1a1a; vertical-align:top;">',
+'                <div style="color:#9ca3af; font-size:10px; letter-spacing:0.8px; font-weight:700; text-transform:uppercase; margin-bottom:3px;">Order ID</div>',
+'                <div style="font-weight:700; font-family:ui-monospace, SFMono-Regular, Menlo, monospace; font-size:14px;">' + orderId + '</div>',
 '              </td>',
 '            </tr>',
 '            <tr>',
-'              <td style="padding:8px 0; font-size:16px; color:#6b7280; width:24px; vertical-align:top; line-height:1.4;">🕐</td>',
-'              <td style="padding:8px 0; font-size:13px; color:#1f2937; vertical-align:top;">',
-'                <div style="color:#9ca3af; font-size:10px; letter-spacing:0.8px; font-weight:600; text-transform:uppercase;">Order Placed</div>',
+'              <td style="padding:10px 0; border-bottom:1px solid #f1f1f1; font-size:13px; color:#1a1a1a; vertical-align:top;">',
+'                <div style="color:#9ca3af; font-size:10px; letter-spacing:0.8px; font-weight:700; text-transform:uppercase; margin-bottom:3px;">Order Placed</div>',
 '                <div style="font-weight:600;">' + placed + '</div>',
 '              </td>',
 '            </tr>',
 '            <tr>',
-'              <td style="padding:8px 0; font-size:16px; color:#6b7280; width:24px; vertical-align:top; line-height:1.4;">📍</td>',
-'              <td style="padding:8px 0; font-size:13px; color:#1f2937; vertical-align:top;">',
-'                <div style="color:#9ca3af; font-size:10px; letter-spacing:0.8px; font-weight:600; text-transform:uppercase;">Delivery Address</div>',
+'              <td style="padding:10px 0; font-size:13px; color:#1a1a1a; vertical-align:top;">',
+'                <div style="color:#9ca3af; font-size:10px; letter-spacing:0.8px; font-weight:700; text-transform:uppercase; margin-bottom:3px;">Delivery Address</div>',
 '                <div style="font-weight:600;">' + address + '</div>',
 '              </td>',
 '            </tr>',
@@ -619,21 +630,21 @@ function buildCustomerOrderEmailHtml(order, baseOverride) {
 '          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">',
 '            <tr>',
 '              <td style="padding:5px 0; color:#6b7280; font-size:13px;">Subtotal</td>',
-'              <td align="right" style="padding:5px 0; color:#1f2937; font-size:13px;">Rs. ' + fmtMoney(order.totals.subtotal) + '</td>',
+'              <td align="right" style="padding:5px 0; color:#1a1a1a; font-size:13px;">Rs. ' + fmtMoney(order.totals.subtotal) + '</td>',
 '            </tr>',
 '            <tr>',
 '              <td style="padding:5px 0; color:#6b7280; font-size:13px;">GST (18%)</td>',
-'              <td align="right" style="padding:5px 0; color:#1f2937; font-size:13px;">Rs. ' + fmtMoney(order.totals.gst) + '</td>',
+'              <td align="right" style="padding:5px 0; color:#1a1a1a; font-size:13px;">Rs. ' + fmtMoney(order.totals.gst) + '</td>',
 '            </tr>',
 '            <tr>',
 '              <td style="padding:5px 0; color:#6b7280; font-size:13px;">Delivery Fee</td>',
-'              <td align="right" style="padding:5px 0; color:#1f2937; font-size:13px;">Rs. ' + fmtMoney(order.totals.deliveryCharge) + '</td>',
+'              <td align="right" style="padding:5px 0; color:#1a1a1a; font-size:13px;">Rs. ' + fmtMoney(order.totals.deliveryCharge) + '</td>',
 '            </tr>',
 '          </table>',
-'          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-top:10px; background:#1f2937; border-radius:8px;">',
+'          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-top:10px; background:#1a1a1a; border-radius:12px;">',
 '            <tr>',
-'              <td style="padding:14px 18px; color:#ffffff; font-weight:600; font-size:14px;">Total Paid</td>',
-'              <td align="right" style="padding:14px 18px; color:#ffffff; font-weight:700; font-size:18px;">Rs. ' + fmtMoney(order.totals.total) + '</td>',
+'              <td style="padding:15px 18px; color:#ffffff; font-weight:600; font-size:13px; letter-spacing:0.3px;">Total Paid</td>',
+'              <td align="right" style="padding:15px 18px; color:#ffffff; font-weight:800; font-size:18px;">Rs. ' + fmtMoney(order.totals.total) + '</td>',
 '            </tr>',
 '          </table>',
 '          <p style="margin:10px 0 0 0; font-size:12px; color:#9ca3af;">' +
@@ -644,19 +655,20 @@ function buildCustomerOrderEmailHtml(order, baseOverride) {
 '        </td></tr>',
 
 '        <!-- CTA button -->',
-'        <tr><td style="padding:0 28px 20px 28px;" align="center">',
+'        <tr><td style="padding:0 28px 24px 28px;" align="center">',
 '          <table role="presentation" cellpadding="0" cellspacing="0" border="0"><tr>',
-'            <td align="center" bgcolor="#1f2937" style="border-radius:8px;">',
-'              <a href="' + baseUrl + '/track.html?id=' + orderId + '" target="_blank" style="display:inline-block; padding:14px 36px; color:#ffffff; text-decoration:none; font-weight:600; font-size:14px; border-radius:8px;">Track Your Order</a>',
+'            <td align="center" bgcolor="#1a1a1a" style="border-radius:999px;">',
+'              <a href="' + baseUrl + '/track.html?id=' + orderId + '" target="_blank" style="display:inline-block; padding:15px 40px; color:#ffffff; text-decoration:none; font-weight:700; font-size:14px; letter-spacing:0.3px; border-radius:999px;">Track Your Order</a>',
 '            </td>',
 '          </tr></table>',
-'          <p style="margin:14px 0 0 0; color:#9ca3af; font-size:12px;">Questions? Call us at <a href="tel:0334-3745379" style="color:#1f2937; text-decoration:none; font-weight:600;">0334-3745379</a></p>',
+'          <p style="margin:16px 0 0 0; color:#9ca3af; font-size:12px;">Questions? Call us at <a href="tel:0334-3745379" style="color:#1a1a1a; text-decoration:none; font-weight:600;">0334-3745379</a></p>',
 '        </td></tr>',
 
 '        <!-- Footer -->',
-'        <tr><td style="padding:0 28px 28px 28px; text-align:center;">',
+'        <tr><td style="padding:22px 28px 28px 28px; text-align:center; border-top:1px solid #f1f1f1;">',
 '          <p style="margin:0; color:#9ca3af; font-size:12px;">Until next time,</p>',
-'          <p style="margin:4px 0 0 0; color:#1f2937; font-size:16px; font-weight:700;">Evora Team</p>',
+'          <p style="margin:4px 0 0 0; color:#1a1a1a; font-size:16px; font-weight:700;">Evora Team</p>',
+'          <p style="margin:8px 0 0 0; color:#b3b3b3; font-size:10px; letter-spacing:1.2px; text-transform:uppercase;">Modern apparel &amp; everyday style</p>',
 '        </td></tr>',
 
 '      </table>',
@@ -829,7 +841,7 @@ app.post('/api/orders', writeLimiter, async function (req, res) {
       sendNotificationEmail(
         'New Evora order — ' + order.orderId,
         buildOrderEmailText(order),
-        buildOrderEmailHtml(order),
+        buildOrderEmailHtml(order, publicBaseFromReq(req)),
         { replyTo: order.customer.email }
       ),
       sendEmailTo(
@@ -952,7 +964,7 @@ app.post('/api/contact', contactLimiter, async function (req, res) {
     await sendNotificationEmail(
       contactSubjectLabel(contact.subject) + ' — ' + contact.name + ' (' + contact.contactId + ')',
       buildContactEmailText(contact),
-      buildContactEmailHtml(contact),
+      buildContactEmailHtml(contact, publicBaseFromReq(req)),
       { replyTo: contact.email }
     );
     res.status(201).json({ success: true, contactId: contact.contactId });

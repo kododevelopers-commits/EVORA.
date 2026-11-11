@@ -8,8 +8,8 @@
     // Forward those straight to the tracker so the tap always opens that order.
     (function () {
       try {
-        var p = new URLSearchParams(window.location.search);
-        var id = (p.get('order') || p.get('id') || '').trim();
+        var match = window.location.search.match(/[?&](?:order|id)=([^&]+)/);
+        var id = match ? decodeURIComponent(match[1]).trim() : '';
         if (id) window.location.replace('track.html?id=' + encodeURIComponent(id));
       } catch (e) {}
     })();

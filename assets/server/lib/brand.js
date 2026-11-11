@@ -100,27 +100,33 @@ function publicBase() {
   return /^https?:\/\//i.test(raw) ? raw : '';
 }
 
-// The logo block that goes at the top of an email. Uses the real artwork when
-// we have it, and falls back to a text wordmark when we do not.
+// The artwork's default proportions (1122 x 276, from the SVG viewBox), used
+// when the file is not present in the runtime bundle (Vercel serverless
+// functions only carry statically-referenced files).
+const DEFAULT_ASPECT = 1122 / 276;
+
+// The logo block that goes at the top of an email. A hosted URL is preferred
+// because it works whether or not the artwork made it into the function
+// bundle; the inline data: URL is the offline fallback and the text wordmark
+// the last resort.
 function logoHtml(options) {
   const opts = options || {};
   const height = opts.height || 40;
-  const accent = opts.accent || '#1f2937';
-  if (!dataUrl) {
-    return '<div style="font-size:22px; font-weight:700; color:#1f2937; line-height:1;">' +
-      'Evora<span style="color:' + accent + ';">.</span></div>';
-  }
-  const width = Math.round(height * aspect);
+  const accent = opts.accent || '#1a1a1a';
   // opts.base lets the caller override the host (e.g. the request's public
   // alias) instead of falling back to VERCEL_URL, which can be a protected
   // deployment address that asks the reader to log in.
   const base = (opts.base !== undefined ? opts.base : publicBase());
-  const src = base
-    ? base + '/assets/' + (loaded && loaded.file ? loaded.file : 'evora-logo.png')
-    : dataUrl;
-  return '<img src="' + src + '" alt="Evora" width="' + width + '" height="' + height +
-    '" style="display:block; border:0; width:' + width + 'px; height:' + height + 'px; max-width:' +
-    (opts.maxWidth || 240) + 'px;">';
+  const file = (loaded && loaded.file) || 'evora-logo.png';
+  if (base || dataUrl) {
+    const width = Math.round(height * (loaded ? aspect : DEFAULT_ASPECT));
+    const src = base ? base + '/assets/' + file : dataUrl;
+    return '<img src="' + src + '" alt="Evora" width="' + width + '" height="' + height +
+      '" style="display:block; border:0; width:' + width + 'px; height:' + height + 'px; max-width:' +
+      (opts.maxWidth || 240) + 'px;">';
+  }
+  return '<div style="font-size:22px; font-weight:700; color:#1a1a1a; line-height:1;">' +
+    'Evora<span style="color:' + accent + ';">.</span></div>';
 }
 
 module.exports = {

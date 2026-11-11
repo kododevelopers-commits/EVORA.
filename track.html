@@ -5,85 +5,73 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex">
 <title>Track Your Order | Evora</title>
+<link rel="stylesheet" href="style.css">
 <style>
   :root{
-    --teal:#14b8a6; --teal-deep:#0f766e; --teal-head:#4db6ac; --teal-band:#79cdc4;
-    --amber:#fbbf24; --amber-deep:#d97706;
-    --green:#10b981; --red:#ef4444;
-    --bg:#edf0f4; --surface:#ffffff; --ink:#1f2937; --muted:#6b7280; --faint:#9ca3af;
-    --line:#e5e7eb; --todo:#e6eaee; --todo-ink:#b6c0ca;
-    --shadow:0 14px 40px rgba(31,41,55,.16);
+    --ink:#1a1a1a; --muted:#6b7280; --faint:#9ca3af; --line:#e6e6e6;
+    --surface:#ffffff; --bg:#fff;
+    --red:#dc2626;
+    --todo:#e9e9e9; --todo-ink:#b8b8b8;
+    --shadow:0 18px 40px rgba(0, 0, 0, 0.08);
   }
   *,*::before,*::after{box-sizing:border-box;}
   html,body{margin:0;padding:0;}
   body{
-    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;
-    background:
-      radial-gradient(1100px 500px at 85% -10%, rgba(20,184,166,.10), transparent 60%),
-      radial-gradient(900px 480px at -10% 110%, rgba(251,191,36,.10), transparent 60%),
-      var(--bg);
-    color:var(--ink); font-size:14px; line-height:1.5;
-    min-height:100vh; display:flex; flex-direction:column;
+    font-family: Arial, Helvetica Neue, Helvetica, sans-serif;
+    background: var(--bg);
+    color: var(--ink); font-size: 14px; line-height: 1.5;
+    min-height: 100vh; display:flex; flex-direction:column;
     -webkit-font-smoothing:antialiased;
   }
-  /* scrollbar in the page's own language */
-  ::-webkit-scrollbar{width:10px;height:10px;}
-  ::-webkit-scrollbar-track{background:var(--bg);}
-  ::-webkit-scrollbar-thumb{background:var(--teal-head);border-radius:8px;border:2px solid var(--bg);}
-  ::-webkit-scrollbar-thumb:hover{background:var(--teal-deep);}
-  html{scrollbar-color:var(--teal-head) var(--bg);scrollbar-width:thin;}
 
-  a{color:var(--teal-deep);}
-  .page{flex:1;width:100%;max-width:760px;margin:0 auto;padding:28px 18px 64px;}
-  .page-top{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:22px;}
-  .wordmark{font-size:22px;font-weight:800;letter-spacing:.2px;color:var(--ink);text-decoration:none;line-height:1;}
-  .wordmark .dot{color:#e4002b;}
-  .back-link{font-size:13px;font-weight:600;color:var(--muted);text-decoration:none;display:inline-flex;align-items:center;gap:6px;padding:8px 12px;border-radius:999px;background:rgba(255,255,255,.7);border:1px solid var(--line);transition:.18s;}
-  .back-link:hover{color:var(--teal-deep);border-color:var(--teal);box-shadow:0 4px 14px rgba(20,184,166,.15);}
+  .page{flex:1;width:100%;max-width:760px;margin:0 auto;padding:40px 20px 80px;}
+  .page-top{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:40px;}
+  .wordmark{font-size:22px;font-weight:800;letter-spacing:-0.5px;color:var(--ink);text-decoration:none;line-height:1; display:flex; align-items:center;}
+  .wordmark img{height:40px; width:auto;}
+  .back-link{font-size:13px;font-weight:600;color:var(--muted);text-decoration:none;display:inline-flex;align-items:center;gap:6px;padding:8px 16px;border-radius:999px;background:#f5f5f5;border:1px solid var(--line);transition:.18s;}
+  .back-link:hover{color:var(--ink);border-color:var(--ink);background:#eee;}
 
   .track-wrap{position:relative;animation:rise .5s cubic-bezier(.2,.7,.3,1) both;}
   @keyframes rise{from{opacity:0;transform:translateY(14px);}to{opacity:1;transform:none;}}
-  .track-card{background:var(--surface);border-radius:6px;overflow:hidden;box-shadow:var(--shadow);border-bottom:4px solid var(--teal-head);}
+  .track-card{background:var(--surface);border-radius:24px;overflow:hidden;box-shadow:var(--shadow);border: 1px solid var(--line); border-bottom: 4px solid var(--ink);}
 
-  .card-head{background:linear-gradient(100deg,var(--teal-head),#5fc0b6);color:#f3fffd;padding:14px 22px;display:flex;align-items:center;justify-content:space-between;gap:12px;}
-  .card-head .title{font-size:14px;font-weight:600;letter-spacing:.4px;}
-  .card-head .title b{font-weight:700;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;letter-spacing:.5px;}
-  .live-pill{display:inline-flex;align-items:center;gap:7px;font-size:11px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;background:rgba(255,255,255,.18);padding:5px 11px;border-radius:999px;white-space:nowrap;}
-  .live-dot{width:7px;height:7px;border-radius:50%;background:#eafffb;box-shadow:0 0 0 0 rgba(234,255,251,.7);animation:pulse 2s infinite;}
-  @keyframes pulse{0%{box-shadow:0 0 0 0 rgba(234,255,251,.6);}70%{box-shadow:0 0 0 8px rgba(234,255,251,0);}100%{box-shadow:0 0 0 0 rgba(234,255,251,0);}}
+  .card-head{background:#1a1a1a;color:#fff;padding:20px 24px;display:flex;align-items:center;justify-content:space-between;gap:12px;}
+  .card-head .title{font-size:15px;font-weight:600;letter-spacing:.4px;}
+  .card-head .title b{font-weight:800;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;letter-spacing:.5px;}
+  .live-pill{display:inline-flex;align-items:center;gap:7px;font-size:11px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;background:rgba(255,255,255,.15);padding:5px 11px;border-radius:999px;white-space:nowrap;}
+  .live-dot{width:7px;height:7px;border-radius:50%;background:#fff;box-shadow:0 0 0 0 rgba(255,255,251,.7);animation:pulse 2s infinite;}
+  @keyframes pulse{0%{box-shadow:0 0 0 0 rgba(255,255,251,.6);}70%{box-shadow:0 0 0 8px rgba(255,255,251,0);}100%{box-shadow:0 0 0 0 rgba(255,255,251,0);}}
 
-  .card-meta{background:var(--teal-band);display:grid;grid-template-columns:repeat(3,1fr);gap:14px;padding:14px 22px;}
-  .meta .label{font-size:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:rgba(255,255,255,.85);}
-  .meta .value{font-size:15px;font-weight:700;color:#fff;margin-top:3px;line-height:1.25;word-break:break-word;}
-  .meta .value.is-cancelled{color:#fff9f9;}
+  .card-meta{background:#f9f9f9;display:grid;grid-template-columns:repeat(3,1fr);gap:14px;padding:20px 24px; border-bottom: 1px solid var(--line);}
+  .meta .label{font-size:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--muted);}
+  .meta .value{font-size:15px;font-weight:700;color:var(--ink);margin-top:4px;line-height:1.25;word-break:break-word;}
+  .meta .value.is-cancelled{color:var(--red);}
 
-  .card-body{padding:38px 26px 30px;position:relative;}
+  .card-body{padding:40px 24px 30px;position:relative;}
 
-  /* ---- Stepper ---- */
   .stepper{position:relative;padding:6px 0 4px;}
   .stepper-track{position:absolute;top:28px;left:12.5%;right:12.5%;height:3px;background:var(--todo);border-radius:3px;z-index:1;}
-  .stepper-progress{height:100%;width:0%;border-radius:3px;background:linear-gradient(90deg,var(--teal),var(--amber));transition:width .7s cubic-bezier(.2,.7,.3,1);}
+  .stepper-progress{height:100%;width:0%;border-radius:3px;background:var(--ink);transition:width .7s cubic-bezier(.2,.7,.3,1);}
   .steps{display:flex;list-style:none;margin:0;padding:0;position:relative;z-index:2;}
   .step{flex:1;min-width:0;display:flex;flex-direction:column;align-items:center;gap:12px;}
-  .node{width:46px;height:46px;border-radius:50%;display:grid;place-items:center;background:var(--todo);color:var(--todo-ink);border:2px solid transparent;transition:background .35s,color .35s,border-color .35s,box-shadow .35s,transform .35s;}
+  .node{width:46px;height:46px;border-radius:50%;display:grid;place-items:center;background:var(--todo);color:var(--todo-ink);border:2px solid transparent;transition:all .35s;}
   .node svg{width:22px;height:22px;display:block;}
   .step-label{font-size:13px;color:var(--muted);text-align:center;line-height:1.25;transition:color .3s;}
-  .step.done .node{background:#fff;border-color:var(--teal);color:var(--teal-deep);}
-  .step.done .step-label{color:var(--teal-deep);}
-  .step.active .node{background:var(--amber);border-color:var(--amber);color:#fff;box-shadow:0 0 0 6px rgba(251,191,36,.22);transform:scale(1.06);}
+  .step.done .node{background:#fff;border-color:var(--ink);color:var(--ink);}
+  .step.done .step-label{color:var(--ink);}
+  .step.active .node{background:var(--ink);border-color:var(--ink);color:#fff;box-shadow:0 0 0 6px rgba(26,26,26,.12);transform:scale(1.06);}
   .step.active .step-label{color:var(--ink);font-weight:700;}
-  .step.complete .node{background:var(--green);border-color:var(--green);color:#fff;box-shadow:0 0 0 6px rgba(16,185,129,.18);}
-  .step.complete .step-label{color:var(--green);font-weight:700;}
+  .step.complete .node{background:var(--ink);border-color:var(--ink);color:#fff;}
+  .step.complete .step-label{color:var(--ink);font-weight:700;}
   .stepper.is-cancelled .node{background:var(--todo);color:var(--todo-ink);border-color:transparent;box-shadow:none;transform:none;}
   .stepper.is-cancelled .step-label{color:var(--faint);}
 
-  .status-note{margin:26px auto 0;max-width:460px;text-align:center;font-size:14px;color:var(--muted);background:#f6f8f9;border:1px solid var(--line);border-radius:10px;padding:12px 16px;}
+  .status-note{margin:26px auto 0;max-width:460px;text-align:center;font-size:14px;color:var(--muted);background:#fbfbfb;border:1px solid var(--line);border-radius:12px;padding:14px 18px;}
   .status-note b{color:var(--ink);}
-  .cancelled-banner{display:none;margin:24px auto 0;max-width:480px;align-items:center;gap:12px;background:#fef2f2;border:1px solid #fecaca;color:#991b1b;border-radius:10px;padding:14px 16px;font-size:14px;font-weight:600;}
+  .cancelled-banner{display:none;margin:24px auto 0;max-width:480px;align-items:center;gap:12px;background:#fef2f2;border:1px solid #fecaca;color:#991b1b;border-radius:12px;padding:14px 16px;font-size:14px;font-weight:600;}
   .cancelled-banner.show{display:flex;}
   .cancelled-banner svg{width:22px;height:22px;flex:none;color:var(--red);}
 
-  /* ---- Summary ---- */
   .summary{margin-top:30px;border-top:1px dashed var(--line);padding-top:22px;}
   .summary-head{display:flex;align-items:baseline;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:6px;}
   .summary-head h2{margin:0;font-size:12px;font-weight:700;letter-spacing:1.2px;text-transform:uppercase;color:var(--faint);}
@@ -96,35 +84,32 @@
   .totals{margin-top:12px;}
   .totals .row{display:flex;justify-content:space-between;gap:12px;padding:5px 0;font-size:13px;color:var(--muted);}
   .totals .row span:last-child{color:var(--ink);}
-  .totals .grand{margin-top:10px;background:var(--ink);color:#fff;border-radius:8px;padding:13px 16px;display:flex;justify-content:space-between;align-items:center;font-size:14px;font-weight:600;}
+  .totals .grand{margin-top:10px;background:var(--ink);color:#fff;border-radius:12px;padding:13px 16px;display:flex;justify-content:space-between;align-items:center;font-size:14px;font-weight:600;}
   .totals .grand b{font-size:18px;font-weight:800;}
 
   .card-foot{margin-top:24px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;}
   .updated{font-size:12px;color:var(--faint);}
-  .refresh-btn{display:inline-flex;align-items:center;gap:8px;border:1px solid var(--teal);background:#fff;color:var(--teal-deep);font:600 13px/1 inherit;font-family:inherit;padding:9px 16px;border-radius:999px;cursor:pointer;transition:.18s;}
-  .refresh-btn:hover{background:var(--teal);color:#fff;box-shadow:0 6px 16px rgba(20,184,166,.28);}
+  .refresh-btn{display:inline-flex;align-items:center;gap:8px;border:1px solid var(--ink);background:#fff;color:var(--ink);font:600 13px/1 inherit;font-family:inherit;padding:9px 16px;border-radius:999px;cursor:pointer;transition:.18s;}
+  .refresh-btn:hover{background:var(--ink);color:#fff;box-shadow:0 6px 16px rgba(0,0,0,.15);}
   .refresh-btn svg{width:15px;height:15px;}
   .refresh-btn.spinning svg{animation:spin .8s linear infinite;}
   @keyframes spin{to{transform:rotate(360deg);}}
   .auto-note{font-size:11px;color:var(--faint);width:100%;text-align:right;}
 
-  /* ---- Floating contact button ---- */
-  .fab{position:absolute;right:22px;bottom:-26px;width:56px;height:56px;border-radius:50%;background:var(--teal-head);color:#fff;display:grid;place-items:center;box-shadow:0 10px 24px rgba(15,118,110,.4);text-decoration:none;transition:transform .2s,background .2s;z-index:5;}
+  .fab{position:absolute;right:22px;bottom:-26px;width:56px;height:56px;border-radius:50%;background:var(--ink);color:#fff;display:grid;place-items:center;box-shadow:0 10px 24px rgba(0,0,0,.3);text-decoration:none;transition:transform .2s,background .2s;z-index:5;}
   .fab svg{width:26px;height:26px;}
-  .fab:hover{transform:translateY(-3px) scale(1.05);background:var(--teal-deep);}
+  .fab:hover{transform:translateY(-3px) scale(1.05);background:#000;}
 
-  /* ---- Gate / manual entry ---- */
-  .gate{background:var(--surface);border-radius:6px;box-shadow:var(--shadow);border-bottom:4px solid var(--teal-head);padding:34px 28px;max-width:460px;margin:0 auto;text-align:center;}
+  .gate{background:var(--surface);border-radius:24px;box-shadow:var(--shadow);border: 1px solid var(--line);padding:34px 28px;max-width:460px;margin:0 auto;text-align:center;}
   .gate h1{margin:0 0 6px;font-size:22px;font-weight:800;}
   .gate p{margin:0 0 20px;color:var(--muted);font-size:14px;}
   .gate form{display:flex;gap:10px;}
-  .gate input{flex:1;min-width:0;padding:12px 14px;border:1px solid var(--line);border-radius:8px;font:600 14px/1.2 ui-monospace,SFMono-Regular,Menlo,monospace;letter-spacing:.5px;color:var(--ink);text-transform:uppercase;}
-  .gate input:focus{outline:none;border-color:var(--teal);box-shadow:0 0 0 3px rgba(20,184,166,.18);}
-  .gate button{border:0;background:var(--teal);color:#fff;font:700 14px/1 inherit;font-family:inherit;padding:12px 20px;border-radius:8px;cursor:pointer;transition:.18s;white-space:nowrap;}
-  .gate button:hover{background:var(--teal-deep);}
+  .gate input{flex:1;min-width:0;padding:12px 14px;border:1px solid var(--line);border-radius:12px;font:600 14px/1.2 ui-monospace,SFMono-Regular,Menlo,monospace;letter-spacing:.5px;color:var(--ink);text-transform:uppercase;}
+  .gate input:focus{outline:none;border-color:var(--ink);box-shadow:0 0 0 3px rgba(0,0,0,0.08);}
+  .gate button{border:0;background:var(--ink);color:#fff;font:700 14px/1 inherit;font-family:inherit;padding:12px 20px;border-radius:12px;cursor:pointer;transition:.18s;white-space:nowrap;}
+  .gate button:hover{background:#000;}
   .gate .hint{margin-top:14px;font-size:12px;color:var(--faint);}
 
-  /* ---- Loading / error ---- */
   .skeleton{padding:10px 0;}
   .sk{background:linear-gradient(90deg,#eef1f4 25%,#e2e7eb 37%,#eef1f4 63%);background-size:400% 100%;animation:shimmer 1.3s ease infinite;border-radius:8px;}
   @keyframes shimmer{0%{background-position:100% 0;}100%{background-position:0 0;}}
@@ -138,18 +123,17 @@
   .error-box h2{margin:0 0 6px;font-size:18px;}
   .error-box p{margin:0 0 18px;color:var(--muted);}
   .error-actions{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;}
-  .btn{border:1px solid var(--line);background:#fff;color:var(--ink);font:600 13px/1 inherit;font-family:inherit;padding:10px 18px;border-radius:8px;cursor:pointer;text-decoration:none;display:inline-block;transition:.18s;}
-  .btn:hover{border-color:var(--teal);color:var(--teal-deep);}
-  .btn.primary{background:var(--teal);border-color:var(--teal);color:#fff;}
-  .btn.primary:hover{background:var(--teal-deep);color:#fff;}
+  .btn{border:1px solid var(--line);background:#fff;color:var(--ink);font:600 13px/1 inherit;font-family:inherit;padding:10px 18px;border-radius:12px;cursor:pointer;text-decoration:none;display:inline-block;transition:.18s;}
+  .btn:hover{border-color:var(--ink);color:var(--ink);}
+  .btn.primary{background:var(--ink);border-color:var(--ink);color:#fff;}
+  .btn.primary:hover{background:#000;color:#fff;}
 
   .page-foot{text-align:center;margin-top:40px;font-size:12px;color:var(--faint);}
   .page-foot a{color:var(--muted);font-weight:600;text-decoration:none;}
 
-  /* ---- Toast ---- */
   .toast{position:fixed;left:50%;bottom:26px;transform:translateX(-50%) translateY(20px);background:var(--ink);color:#fff;padding:12px 20px;border-radius:999px;font-size:13px;font-weight:600;box-shadow:0 10px 30px rgba(0,0,0,.3);opacity:0;pointer-events:none;transition:.3s;z-index:9999;display:flex;align-items:center;gap:9px;max-width:90vw;}
   .toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
-  .toast .tdot{width:8px;height:8px;border-radius:50%;background:var(--amber);flex:none;}
+  .toast .tdot{width:8px;height:8px;border-radius:50%;background:#fff;flex:none;}
 
   [hidden]{display:none !important;}
 
@@ -169,22 +153,19 @@
     .gate form{flex-direction:column;}
     .auto-note{text-align:center;}
   }
-  @media (prefers-reduced-motion:reduce){
-    *,*::before,*::after{animation-duration:.001ms !important;animation-iteration-count:1 !important;transition-duration:.001ms !important;}
-  }
 </style>
 </head>
 <body>
   <div class="page">
     <div class="page-top">
-      <a class="wordmark" href="index.html">Evora<span class="dot">.</span></a>
+      <a class="wordmark" href="index.html">
+        <img src="assets/evora-logo.svg" alt="Evora">
+      </a>
       <a class="back-link" href="index.html">
         <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5"/><path d="M12 19l-7-7 7-7"/></svg>
         Back to store
       </a>
     </div>
-
-    <!-- Manual entry gate (shown when no order id is present) -->
     <section class="gate" id="gate" hidden>
       <h1>Track your order</h1>
       <p>Enter the order ID from your confirmation email to see its live progress.</p>
@@ -194,8 +175,6 @@
       </form>
       <div class="hint">You&apos;ll find this ID in the order confirmation email we sent you.</div>
     </section>
-
-    <!-- Tracker card -->
     <div class="track-wrap" id="tracker" hidden>
       <div class="track-card">
         <div class="card-head">
@@ -208,13 +187,11 @@
           <div class="meta"><div class="label">Expected</div><div class="value" id="metaExpected">&mdash;</div></div>
         </div>
         <div class="card-body">
-          <!-- loading -->
           <div class="skeleton" id="loading">
             <div class="sk-row"><div class="sk sk-node"></div><div class="sk sk-node"></div><div class="sk sk-node"></div><div class="sk sk-node"></div></div>
             <div class="sk sk-line"></div>
             <div class="sk sk-block"></div>
           </div>
-          <!-- error -->
           <div class="error-box" id="error" hidden>
             <div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 8v4"/><path d="M12 16h.01"/></svg></div>
             <h2 id="errorTitle">Order not found</h2>
@@ -224,7 +201,6 @@
               <button class="btn" id="changeIdBtn" type="button">Enter a different ID</button>
             </div>
           </div>
-          <!-- content -->
           <div id="content" hidden>
             <div class="stepper" id="stepper">
               <div class="stepper-track"><div class="stepper-progress" id="stepperProgress"></div></div>
@@ -247,14 +223,11 @@
                 </li>
               </ol>
             </div>
-
             <div class="cancelled-banner" id="cancelledBanner">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M15 9l-6 6"/><path d="M9 9l6 6"/></svg>
               <span>This order was cancelled. If you didn&apos;t request this, please contact us.</span>
             </div>
-
             <p class="status-note" id="statusNote"></p>
-
             <div class="summary">
               <div class="summary-head">
                 <h2>Order summary</h2>
@@ -263,7 +236,6 @@
               <ul class="sum-items" id="sumItems"></ul>
               <div class="totals" id="totals"></div>
             </div>
-
             <div class="card-foot">
               <div class="updated" id="updated"></div>
               <button class="refresh-btn" id="refreshBtn" type="button">
@@ -274,22 +246,18 @@
             </div>
           </div>
         </div>
+        <a class="fab" href="contact.html" title="Contact us about this order" aria-label="Contact us about this order">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M2 7l10 6 10-6"/></svg>
+        </a>
       </div>
-      <a class="fab" href="contact.html" title="Contact us about this order" aria-label="Contact us about this order">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M2 7l10 6 10-6"/></svg>
-      </a>
     </div>
-
     <div class="page-foot">Need help? <a href="contact.html">Contact Evora</a> &middot; <a href="tel:0334-3745379">0334-3745379</a></div>
   </div>
-
   <div class="toast" id="toast" role="status" aria-live="polite"><span class="tdot"></span><span id="toastMsg"></span></div>
-
-<script src="api-client.js"></script>
-<script>
+  <script src="api-client.js"></script>
+  <script>
 (function () {
   'use strict';
-
   var STEPS = ['received', 'preparing', 'out_for_delivery', 'delivered'];
   var LABELS = {
     received: 'Order Received',
@@ -305,14 +273,12 @@
     delivered: 'Your order has been delivered. Enjoy!',
     cancelled: 'This order was cancelled and will not be delivered.'
   };
-
   var $ = function (id) { return document.getElementById(id); };
   var gate = $('gate'), tracker = $('tracker');
   var loading = $('loading'), errorBox = $('error'), content = $('content');
   var currentId = '';
   var lastStatus = null;
   var toastTimer = null;
-
   function apiFetch(path) {
     return window.EVORA_API ? window.EVORA_API.fetch(path) : fetch(path);
   }
@@ -336,12 +302,10 @@
     clearTimeout(toastTimer);
     toastTimer = setTimeout(function () { $('toast').classList.remove('show'); }, 4000);
   }
-
   function readIdFromUrl() {
     var p = new URLSearchParams(window.location.search);
     return (p.get('id') || p.get('order') || '').trim();
   }
-
   function showGate() {
     tracker.hidden = true;
     gate.hidden = false;
@@ -356,7 +320,6 @@
     errorBox.hidden = state !== 'error';
     content.hidden = state !== 'content';
   }
-
   function renderStepper(status) {
     var stepper = $('stepper');
     var nodes = stepper.querySelectorAll('.step');
@@ -375,7 +338,6 @@
     var pct = cancelled ? 0 : (active / (STEPS.length - 1)) * 100;
     $('stepperProgress').style.width = pct + '%';
   }
-
   function renderSummary(order) {
     var list = $('sumItems');
     list.textContent = '';
@@ -389,7 +351,6 @@
       li.appendChild(left); li.appendChild(pr);
       list.appendChild(li);
     });
-
     var t = order.totals || {};
     var totals = $('totals');
     totals.textContent = '';
@@ -403,18 +364,15 @@
     var ga = document.createElement('span'); ga.textContent = (order.payment && order.payment.method === 'cod') ? 'Total (Cash on Delivery)' : 'Total';
     var gb = document.createElement('b'); gb.textContent = money(t.total);
     grand.appendChild(ga); grand.appendChild(gb); totals.appendChild(grand);
-
     var c = order.customer || {};
     $('summaryFor').textContent = c.name ? ('For ' + c.name + (c.area ? ' · ' + c.area : '')) : '';
   }
-
   function render(order) {
     var status = order.status || 'received';
     $('headId').textContent = order.orderId;
     $('metaStatus').textContent = LABELS[status] || status;
     $('metaStatus').classList.toggle('is-cancelled', status === 'cancelled');
     $('metaShip').textContent = 'Evora Delivery';
-
     var expected;
     if (status === 'cancelled') expected = '—';
     else if (status === 'delivered') expected = fmtDate(order.statusUpdatedAt || order.receivedAt);
@@ -425,7 +383,6 @@
       expected = fmtDate(base);
     }
     $('metaExpected').textContent = expected;
-
     renderStepper(status);
     $('cancelledBanner').classList.toggle('show', status === 'cancelled');
     var note = $('statusNote');
@@ -436,12 +393,10 @@
       note.hidden = false;
       note.textContent = NOTES[status] || '';
     }
-
     renderSummary(order);
     $('updated').textContent = 'Last updated ' + fmtDateTime(order.statusUpdatedAt || order.receivedAt);
     setBodyState('content');
   }
-
   function load(silent) {
     if (!currentId) return;
     if (!silent) { setBodyState('loading'); $('refreshBtn').classList.add('spinning'); }
@@ -458,7 +413,7 @@
         if (changed) showToast('Status updated: ' + (LABELS[order.status] || order.status));
       })
       .catch(function (err) {
-        if (silent) return; // keep showing the last good state on background refresh failures
+        if (silent) return;
         if (err && err.code === 404) {
           $('errorTitle').textContent = 'Order not found';
           $('errorMsg').textContent = 'We couldn’t find an order with that ID. Check the ID from your confirmation email and try again.';
@@ -470,7 +425,6 @@
       })
       .finally(function () { $('refreshBtn').classList.remove('spinning'); });
   }
-
   function startTracking(id) {
     currentId = id.trim().toUpperCase();
     lastStatus = null;
@@ -481,8 +435,6 @@
     window.history.replaceState({}, '', url);
     load(false);
   }
-
-  // ---- wiring ----
   $('gateForm').addEventListener('submit', function (e) {
     e.preventDefault();
     var v = $('gateInput').value.trim();
@@ -504,8 +456,6 @@
   setInterval(function () {
     if (currentId && !isTerminal() && document.visibilityState === 'visible') load(true);
   }, 20000);
-
-  // ---- boot ----
   var initial = readIdFromUrl();
   if (initial) startTracking(initial);
   else showGate();

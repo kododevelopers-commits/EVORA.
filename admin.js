@@ -11,6 +11,17 @@
   var SESSION_KEY = 'evoraAdminSession';
   var OWNER_EMAIL = 'evora.reply@gmail.com';
 
+  // Friendly names shown on the account button and menu instead of the raw
+  // email address.
+  var ACCOUNT_NAMES = {
+    'evora.reply@gmail.com': 'EVORA',
+    'kododevelopers@gmail.com': 'KODO',
+    'muhammadammarsheikh11@gmail.com': 'Ammar Sheikh'
+  };
+  function displayName(email) {
+    return ACCOUNT_NAMES[email] || email;
+  }
+
   var els = {
     gate:        document.getElementById('gate'),
     emailForm:   document.getElementById('emailForm'),
@@ -39,6 +50,7 @@
     accountAvatar: document.getElementById('accountAvatar'),
     accountEmail: document.getElementById('accountEmail'),
     accountMenu:  document.getElementById('accountMenu'),
+    menuName:     document.getElementById('menuName'),
     menuEmail:    document.getElementById('menuEmail'),
     menuRole:     document.getElementById('menuRole'),
     logoutBtn:    document.getElementById('logoutBtn')
@@ -109,8 +121,10 @@
 
   function renderAccount() {
     var email = getEmail();
-    els.accountAvatar.textContent = (email.charAt(0) || '?').toUpperCase();
-    els.accountEmail.textContent = email;
+    var name = displayName(email);
+    els.accountAvatar.textContent = (name.charAt(0) || '?').toUpperCase();
+    els.accountEmail.textContent = name;
+    els.menuName.textContent = name;
     els.menuEmail.textContent = email;
     els.menuRole.textContent = email === OWNER_EMAIL ? 'Owner' : 'Admin';
   }

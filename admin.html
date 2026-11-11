@@ -190,6 +190,11 @@
       gap: 2px;
     }
     .account-menu-head strong { font-size: 13px; word-break: break-all; }
+    .account-menu-head .account-menu-email {
+      font-size: 12px;
+      color: #6b7280;
+      word-break: break-all;
+    }
     .account-menu-head .role {
       font-size: 11px;
       font-weight: 700;
@@ -443,7 +448,8 @@
         </button>
         <div class="account-menu" id="accountMenu" hidden>
           <div class="account-menu-head">
-            <strong id="menuEmail"></strong>
+            <strong id="menuName"></strong>
+            <span class="account-menu-email" id="menuEmail"></span>
             <span class="role" id="menuRole"></span>
           </div>
           <button class="account-logout" id="logoutBtn" type="button">Log out</button>

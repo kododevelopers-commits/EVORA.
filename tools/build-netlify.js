@@ -27,7 +27,8 @@ const FILES = [
   'catalog.js',
   'api-client.js',
   'robots.txt',
-  'sitemap.xml'
+  'sitemap.xml',
+  'google76232651f15caf32.html'
 ];
 
 fs.rmSync(DIST, { recursive: true, force: true });

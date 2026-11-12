@@ -25,6 +25,8 @@ const FILES = [
   'script.js',
   'admin.js',
   'catalog.js',
+  'locations.js',
+  'location-picker.js',
   'api-client.js',
   'robots.txt',
   'sitemap.xml',

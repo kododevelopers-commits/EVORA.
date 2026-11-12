@@ -4190,3 +4190,431 @@ button {
     font-size: 16px;
   }
 }
+
+/* =========================================================================
+   Location picker (checkout) — Pakistan city -> area -> street + maps
+   Subject palette: Pakistan green (#046a38 / #0b7a45) for "located" accents,
+   amber for warnings, Evora dark for primary structure. Keyless by default.
+   ========================================================================= */
+.location-picker-mount {
+  margin-top: 4px;
+}
+
+.loc-picker {
+  --loc-green: #046a38;
+  --loc-green-mid: #0b7a45;
+  --loc-green-tint: #e7f4ec;
+  --loc-green-line: #bfe0cd;
+  --loc-ink: #1a1a1a;
+  --loc-muted: #777;
+  --loc-border: #e8e8e8;
+}
+
+.loc-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+}
+
+.loc-field {
+  margin-bottom: 18px;
+}
+
+.loc-optional {
+  color: var(--loc-muted);
+  font-weight: 600;
+  font-size: 12px;
+}
+
+/* ---- combobox ---- */
+.loc-combo {
+  position: relative;
+}
+
+.loc-combo-input {
+  width: 100%;
+  border: 2px solid var(--loc-border);
+  background-color: #fff;
+  border-radius: 16px;
+  padding: 12px 42px 12px 16px;
+  font-family: Arial, Helvetica Neue, Helvetica, sans-serif;
+  font-size: 14px;
+  color: var(--loc-ink);
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.loc-combo-input::placeholder {
+  color: #9a9a9a;
+}
+
+.loc-combo-input:focus {
+  outline: none;
+  border-color: var(--loc-ink);
+}
+
+.loc-combo.is-open .loc-combo-input {
+  border-color: var(--loc-green-mid);
+  box-shadow: 0 0 0 3px rgba(11, 122, 69, 0.14);
+}
+
+.loc-combo-input:disabled {
+  background-color: #f5f5f5;
+  color: #9a9a9a;
+  cursor: not-allowed;
+}
+
+.loc-combo-arrow {
+  position: absolute;
+  right: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  align-items: center;
+  color: var(--loc-muted);
+  pointer-events: none;
+  transition: transform 0.18s ease, color 0.18s ease;
+}
+
+.loc-combo.is-open .loc-combo-arrow {
+  transform: translateY(-50%) rotate(180deg);
+  color: var(--loc-green-mid);
+}
+
+.loc-combo-list {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  right: 0;
+  z-index: 40;
+  margin: 0;
+  padding: 6px;
+  list-style: none;
+  background-color: #fff;
+  border: 2px solid var(--loc-border);
+  border-radius: 16px;
+  box-shadow: 0 18px 40px rgba(10, 40, 25, 0.16);
+  max-height: 264px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  animation: loc-pop 0.16s ease;
+  /* Firefox scrollbar */
+  scrollbar-width: thin;
+  scrollbar-color: var(--loc-green-line) #f0f0f0;
+}
+
+.loc-combo-list::-webkit-scrollbar {
+  width: 10px;
+}
+
+.loc-combo-list::-webkit-scrollbar-track {
+  background: #f0f0f0;
+  border-radius: 16px;
+  margin: 6px 0;
+}
+
+.loc-combo-list::-webkit-scrollbar-thumb {
+  background: var(--loc-green-line);
+  border-radius: 16px;
+  border: 2px solid #f0f0f0;
+}
+
+.loc-combo-list::-webkit-scrollbar-thumb:hover {
+  background: var(--loc-green-mid);
+}
+
+.loc-combo-group {
+  position: sticky;
+  top: -6px;
+  z-index: 1;
+  padding: 8px 12px 6px;
+  background-color: #fff;
+  color: var(--loc-green);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+  border-bottom: 1px solid var(--loc-green-tint);
+}
+
+.loc-combo-option {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 11px;
+  cursor: pointer;
+  color: var(--loc-ink);
+  font-size: 14px;
+  border-left: 3px solid transparent;
+}
+
+.loc-combo-option .loc-combo-sub {
+  color: var(--loc-muted);
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.loc-combo-option.is-active {
+  background-color: var(--loc-green-tint);
+  border-left-color: var(--loc-green-mid);
+}
+
+.loc-combo-option.is-custom {
+  background-color: var(--loc-green-tint);
+  align-items: center;
+  justify-content: flex-start;
+}
+
+.loc-combo-custom-tag {
+  flex-shrink: 0;
+  background-color: var(--loc-green);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 800;
+  padding: 3px 9px;
+  border-radius: 20px;
+}
+
+.loc-combo-option.is-custom .loc-combo-main {
+  font-weight: 700;
+  color: var(--loc-green);
+}
+
+.loc-combo-empty {
+  padding: 14px 12px;
+  color: var(--loc-muted);
+  font-size: 13px;
+  text-align: center;
+}
+
+/* ---- action buttons ---- */
+.loc-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin: 4px 0 6px;
+}
+
+.loc-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  border-radius: 30px;
+  padding: 12px 20px;
+  font-family: Arial, Helvetica Neue, Helvetica, sans-serif;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  border: 2px solid transparent;
+  transition: transform 0.15s ease, opacity 0.15s ease, box-shadow 0.15s ease, background-color 0.15s ease;
+}
+
+.loc-btn svg {
+  flex-shrink: 0;
+}
+
+.loc-btn:hover {
+  transform: translateY(-2px);
+}
+
+.loc-btn:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.loc-btn-gps {
+  color: #fff;
+  background-image: linear-gradient(135deg, #0b7a45 0%, #046a38 100%);
+  box-shadow: 0 8px 18px rgba(4, 106, 56, 0.24);
+}
+
+.loc-btn-gps:hover {
+  box-shadow: 0 12px 24px rgba(4, 106, 56, 0.3);
+}
+
+.loc-btn-map {
+  color: var(--loc-ink);
+  background-color: #fff;
+  border-color: var(--loc-ink);
+}
+
+.loc-btn-map:hover {
+  background-color: #fafafa;
+}
+
+.loc-btn.is-loading svg {
+  display: none;
+}
+
+.loc-btn.is-loading::before {
+  content: "";
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  border: 2px solid currentColor;
+  border-top-color: transparent;
+  animation: loc-spin 0.7s linear infinite;
+}
+
+/* ---- status line ---- */
+.loc-status {
+  margin: 10px 0 0;
+  padding: 11px 14px;
+  border-radius: 14px;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.5;
+  border-left: 3px solid transparent;
+}
+
+.loc-status.is-info {
+  background-color: #eef1f6;
+  color: #3a4a5f;
+  border-left-color: #8fa3bd;
+}
+
+.loc-status.is-success {
+  background-color: var(--loc-green-tint);
+  color: #1f7a37;
+  border-left-color: var(--loc-green-mid);
+}
+
+.loc-status.is-warn {
+  background-color: #fdf3e3;
+  color: #b45309;
+  border-left-color: #d98a2b;
+}
+
+.loc-status.is-error {
+  background-color: #fbeae9;
+  color: #b3261e;
+  border-left-color: #b3261e;
+}
+
+/* ---- map preview ---- */
+.loc-map {
+  margin-top: 14px;
+  background-color: #fff;
+  border: 2px solid var(--loc-border);
+  border-radius: 20px;
+  overflow: hidden;
+  animation: loc-pop 0.2s ease;
+}
+
+.loc-map-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--loc-border);
+}
+
+.loc-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  background-color: var(--loc-green-tint);
+  color: var(--loc-green);
+  font-size: 12px;
+  font-weight: 800;
+  padding: 6px 12px;
+  border-radius: 20px;
+}
+
+.loc-chip::before {
+  content: "";
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background-color: var(--loc-green-mid);
+  box-shadow: 0 0 0 0 rgba(11, 122, 69, 0.5);
+  animation: loc-pulse 2s ease-out infinite;
+}
+
+.loc-open {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--loc-green);
+  font-size: 13px;
+  font-weight: 700;
+  text-decoration: none;
+  transition: gap 0.15s ease, color 0.15s ease;
+}
+
+.loc-open:hover {
+  color: var(--loc-green-mid);
+  gap: 8px;
+  text-decoration: underline;
+}
+
+.loc-map-frame {
+  position: relative;
+  aspect-ratio: 16 / 10;
+  background-color: #eef1f0;
+}
+
+.loc-map-frame iframe {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border: 0;
+}
+
+.loc-map-hint {
+  margin: 0;
+  padding: 10px 16px 14px;
+  color: var(--loc-muted);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+@keyframes loc-pop {
+  from { opacity: 0; transform: translateY(-6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes loc-spin {
+  to { transform: rotate(360deg); }
+}
+
+@keyframes loc-pulse {
+  0% { box-shadow: 0 0 0 0 rgba(11, 122, 69, 0.45); }
+  70% { box-shadow: 0 0 0 7px rgba(11, 122, 69, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(11, 122, 69, 0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .loc-combo-list,
+  .loc-map {
+    animation: none;
+  }
+  .loc-chip::before {
+    animation: none;
+  }
+  .loc-btn.is-loading::before {
+    animation-duration: 1.4s;
+  }
+}
+
+@media screen and (max-width: 860px) {
+  .loc-grid {
+    grid-template-columns: 1fr;
+    gap: 0;
+  }
+  .loc-combo-input,
+  .loc-picker .loc-field input {
+    font-size: 16px;
+  }
+  .loc-actions {
+    flex-direction: column;
+  }
+  .loc-btn {
+    width: 100%;
+    justify-content: center;
+  }
+}

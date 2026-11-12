@@ -1047,6 +1047,18 @@
       var totals = cartTotals();
       if (totals.count === 0) return;
 
+      // The location picker owns the address now: make sure city, area and
+      // street are set, and flush its composed values into the hidden fields.
+      if (window.EVORA_LOCATION && typeof window.EVORA_LOCATION.validate === 'function') {
+        var locCheck = window.EVORA_LOCATION.validate();
+        if (!locCheck.ok) {
+          showCheckoutError(locCheck.message);
+          if (window.EVORA_LOCATION.focusInvalid) window.EVORA_LOCATION.focusInvalid();
+          return;
+        }
+        window.EVORA_LOCATION.sync();
+      }
+
       var gst = Math.round(totals.total * GST_RATE);
       var grandTotal = totals.total + gst + DELIVERY_CHARGE;
 

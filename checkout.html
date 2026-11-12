@@ -8,7 +8,7 @@
   <meta name="robots" content="noindex">
   <meta name="theme-color" content="#1a1a1a">
   <link rel="icon" type="image/svg+xml" href="assets/evora-logo.svg">
-  <link rel="stylesheet" href="style.css?v=38">
+  <link rel="stylesheet" href="style.css?v=39">
 </head>
 <body>
 
@@ -148,20 +148,13 @@
               <label for="co-phone">Phone Number</label>
               <input type="tel" id="co-phone" name="phone" placeholder="03XX-XXXXXXX" required>
             </div>
-            <div class="field">
-              <label for="co-address">Delivery Address</label>
-              <textarea id="co-address" name="address" placeholder="House / street, area, landmark..." required></textarea>
-            </div>
-            <div class="field">
-              <label for="co-area">Area</label>
-              <select id="co-area" name="area">
-                <option value="Clifton">Clifton</option>
-                <option value="DHA Phase 5">DHA Phase 5</option>
-                <option value="Gulshan-e-Iqbal">Gulshan-e-Iqbal</option>
-                <option value="North Nazimabad">North Nazimabad</option>
-                <option value="Saddar">Saddar</option>
-              </select>
-            </div>
+
+            <!-- Pakistan location picker: City -> Area/Town/Sector -> street,
+                 with GPS auto-fill and a keyless Google Maps preview. It writes
+                 the two hidden fields below, which the order payload reads. -->
+            <div id="evoraLocationPicker" class="location-picker-mount"></div>
+            <input type="hidden" id="co-address" name="address">
+            <input type="hidden" id="co-area" name="area">
           </div>
 
           <div class="form-card payment-card">
@@ -317,6 +310,8 @@
 
   <script src="catalog.js?v=30"></script>
   <script src="api-client.js?v=30"></script>
-  <script src="script.js?v=32"></script>
+  <script src="locations.js?v=1"></script>
+  <script src="location-picker.js?v=1"></script>
+  <script src="script.js?v=33"></script>
 </body>
 </html>

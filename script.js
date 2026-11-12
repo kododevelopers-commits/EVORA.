@@ -1,4 +1,38 @@
-document.addEventListener('DOMContentLoaded', function () {
+(function () {
+  var resolveCartReady;
+  var rejectCartReady;
+  window.EVORA_API.cartReady = new Promise(function (resolve, reject) {
+    resolveCartReady = resolve;
+    rejectCartReady = reject;
+  });
+  window.EVORA_API.cartReady.catch(function () { /* product page handles failure */ });
+
+  document.addEventListener('DOMContentLoaded', function () {
+  var orderingReady = false;
+  var orderControls = '#cartBtn, #placeOrderBtn, .add-btn, .qty-btn, .cp-plus, .cp-minus, .cli-qty-btn, .cp-upsell-add';
+  function lockOrdering(locked) {
+    document.querySelectorAll(orderControls).forEach(function (button) { button.disabled = locked; });
+    document.querySelectorAll('.cp-checkout-btn').forEach(function (link) {
+      link.setAttribute('aria-disabled', String(locked));
+    });
+  }
+  lockOrdering(true);
+  document.querySelectorAll('[data-products]').forEach(function (grid) {
+    grid.textContent = 'Loading products…';
+    grid.setAttribute('aria-busy', 'true');
+  });
+  document.addEventListener('click', function (e) {
+    if (!orderingReady && e.target.closest(orderControls + ', .cp-checkout-btn, #cartFloatBar')) {
+      e.preventDefault();
+      e.stopImmediatePropagation();
+    }
+  }, true);
+  document.addEventListener('submit', function (e) {
+    if (!orderingReady && e.target.id === 'checkoutForm') {
+      e.preventDefault();
+      e.stopImmediatePropagation();
+    }
+  }, true);
 
   // ---------- Motion preference ----------
   // If the visitor has asked their OS for reduced motion, we skip carousel
@@ -10,13 +44,12 @@ document.addEventListener('DOMContentLoaded', function () {
     return REDUCED_MOTION ? 'auto' : 'smooth';
   }
 
-  // ---------- Product cards rendered from catalog.js ----------
-  // Every product grid on the site is generated from the one catalogue file,
-  // so a price/name/image only ever exists in one place. Grids opt in with:
+  // ---------- Product cards rendered from the live API catalogue ----------
+  // Only called after catalogReady. Grids opt in with:
   //   data-products="all"             -> the whole catalogue
   //   data-products="slug-a,slug-b"   -> just those products, in that order
   function catalogItems() {
-    return (typeof EVORA_CATALOG !== 'undefined' && EVORA_CATALOG.items) || [];
+    return window.EVORA_CATALOG.items.filter(function (p) { return p.available !== false; });
   }
 
   function catalogItemBySlug(slug) {
@@ -37,7 +70,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
   function productCardHtml(p) {
     return '<a href="product.html?slug=' + encodeURIComponent(p.id) + '" class="menu-card-link">' +
-        '<div class="menu-card" data-category="' + escapeHtml(p.category) + '">' +
+        '<div class="menu-card" data-product-id="' + escapeHtml(p.id) + '" data-category="' + escapeHtml(p.category) + '">' +
           '<div class="menu-img">' +
             '<img class="menu-emoji menu-img-front" loading="lazy" decoding="async" src="' +
               escapeHtml(p.image) + '" alt="' + escapeHtml(p.name) + '">' +
@@ -60,6 +93,7 @@ document.addEventListener('DOMContentLoaded', function () {
       '</a>';
   }
 
+  function renderProductGrids() {
   Array.prototype.forEach.call(
     document.querySelectorAll('[data-products]'),
     function (grid) {
@@ -72,9 +106,18 @@ document.addEventListener('DOMContentLoaded', function () {
           .map(function (slug) { return catalogItemBySlug(slug.trim()); })
           .filter(Boolean);
       }
+      var category = grid.getAttribute('data-product-category');
+      if (category) {
+        items = items.filter(function (p) { return p.category === category; });
+        catalogItems().forEach(function (p) {
+          if (items.length < 4 && p.category === category && !items.some(function (item) { return item.id === p.id; })) items.push(p);
+        });
+      }
       grid.innerHTML = items.map(productCardHtml).join('');
+      grid.setAttribute('aria-busy', 'false');
     }
   );
+  }
 
   // ---------- Categories slide-in panel ----------
   var categoriesBtn = document.getElementById('categoriesBtn');
@@ -98,12 +141,10 @@ document.addEventListener('DOMContentLoaded', function () {
     if (categoriesBtn) categoriesBtn.setAttribute('aria-expanded', 'false');
   }
 
-  // Populate the panel list from the catalogue, NOT from the homepage's
-  // category bar. The bar only exists on index.html, so scraping it left the
-  // panel empty on every other page (menu, product, contact, about, checkout).
-  // The catalogue is loaded on every page, so the list is always complete.
+  // Populate from the live catalogue, independently of the homepage bar.
+  function renderCategories() {
   if (categoriesPanelList) {
-    var categories = (typeof EVORA_CATALOG !== 'undefined' && EVORA_CATALOG.categories) || [];
+    var categories = window.EVORA_CATALOG.categories;
     var panelLinks = [{ id: 'all', label: 'All Products' }].concat(categories);
     panelLinks.forEach(function (cat) {
       var item = document.createElement('a');
@@ -113,6 +154,7 @@ document.addEventListener('DOMContentLoaded', function () {
       item.setAttribute('data-category', cat.id);
       categoriesPanelList.appendChild(item);
     });
+  }
   }
 
   if (categoriesBtn) {
@@ -226,6 +268,7 @@ document.addEventListener('DOMContentLoaded', function () {
   }
 
   // ---------- Search bar + menu category tabs ----------
+  function initMenuFilters() {
   var searchForm = document.getElementById('menuSearchForm');
   var searchInput = document.getElementById('menuSearchInput');
   var menuGrid = document.getElementById('menuGrid');
@@ -349,13 +392,9 @@ document.addEventListener('DOMContentLoaded', function () {
     applyMenuFilters();
   } else if (searchInput) {
     // ----- Other pages (e.g. homepage): animated placeholder, submit goes to the menu -----
-    var searchSuggestions = [
-      'Olive Drape Co-Ord Set...',
-      'Red Parrot Resort Shirt...',
-      'Grey Raglan Star Tee...',
-      'Brown Wide-Leg Sweatpants...',
-      'Plum Square-Neck Blouse...'
-    ];
+    var searchSuggestions = catalogItems().slice(0, 5).map(function (p) { return p.name + '...'; });
+    if (!searchSuggestions.length) searchSuggestions = ['products...'];
+    searchInput.setAttribute('placeholder', 'Search for ' + searchSuggestions[0]);
     var suggestionIndex = 0;
     window.setInterval(function () {
       if (document.activeElement === searchInput || searchInput.value) return;
@@ -370,6 +409,8 @@ document.addEventListener('DOMContentLoaded', function () {
         window.location.href = 'menu.html' + (q ? ('?q=' + encodeURIComponent(q)) : '');
       });
     }
+  }
+
   }
 
   // ---------- Contact form (now posts to /api/contact on the server) ----------
@@ -453,6 +494,13 @@ document.addEventListener('DOMContentLoaded', function () {
     });
   }
 
+  async function initStorefront() {
+  try {
+    await window.EVORA_API.catalogReady;
+    renderProductGrids();
+    renderCategories();
+    initMenuFilters();
+
   // ---------- Cart ----------
   // Migrate any old "karachibites_cart" data so users coming from the
   // previous version don't lose their bag.
@@ -483,40 +531,39 @@ document.addEventListener('DOMContentLoaded', function () {
     }
   }
 
-  function parsePrice(text) {
-    var match = String(text).match(/[\d,]+(\.\d+)?/);
-    if (!match) return 0;
-    var n = parseFloat(match[0].replace(/,/g, ''));
-    return isNaN(n) ? 0 : n;
-  }
-
   function formatPrice(n) {
     return 'Rs. ' + Number(n).toLocaleString('en-US');
   }
 
-  var cart = loadCart();
+  var productsById = Object.create(null);
+  catalogItems().forEach(function (p) { productsById[p.id] = p; });
 
-  // Maps a cart item's name to its thumbnail image. Built from catalog.js so
-  // there is no second copy of the product list to fall out of sync.
-  var PRODUCT_IMAGES = {};
-  (function () {
-    var items = (typeof EVORA_CATALOG !== 'undefined' && EVORA_CATALOG.items) || [];
-    items.forEach(function (p) { PRODUCT_IMAGES[p.name] = p.image; });
-  })();
+  // Migrate legacy name keys once. IDs survive renames; all display data comes
+  // from today's catalogue. Missing/unavailable items and invalid quantities go.
+  var storedCart = loadCart();
+  var cart = Object.create(null);
+  if (storedCart && typeof storedCart === 'object' && !Array.isArray(storedCart)) {
+    Object.keys(storedCart).forEach(function (key) {
+      var item = storedCart[key];
+      if (!item || typeof item !== 'object') return;
+      var p = item.id ? productsById[item.id] : productsById[key];
+      if (!item.id && !p) {
+        p = catalogItems().find(function (product) { return product.name === (item.name || key); });
+      }
+      var qty = Number(item.qty);
+      if (!p || !Number.isSafeInteger(qty) || qty <= 0) return;
+      qty += cart[p.id] ? cart[p.id].qty : 0;
+      if (!Number.isSafeInteger(qty)) return;
+      cart[p.id] = { id: p.id, name: p.name, price: p.price, qty: qty };
+    });
+  }
+  saveCart(cart);
 
-  function productImage(name) {
-    return PRODUCT_IMAGES[name] || 'assets/products/grey-raglan-star-tee.jpg';
+  function productImage(id) {
+    return productsById[id] ? productsById[id].image : '';
   }
 
-  // Candidate items offered as cross-sell suggestions in the cart panel,
-  // also derived from the catalogue.
-  var UPSELL_ITEMS = [];
-  (function () {
-    var items = (typeof EVORA_CATALOG !== 'undefined' && EVORA_CATALOG.items) || [];
-    items.forEach(function (p) {
-      if (p.available !== false) UPSELL_ITEMS.push({ name: p.name, price: p.price });
-    });
-  })();
+  var UPSELL_ITEMS = catalogItems();
 
   function cartTotals() {
     var count = 0;
@@ -553,15 +600,15 @@ document.addEventListener('DOMContentLoaded', function () {
       keys.forEach(function (key) {
         var item = cart[key];
         html += '<div class="cp-item">' +
-          '<img class="cp-item-img" src="' + productImage(item.name) + '" alt="' + item.name + '">' +
+          '<img class="cp-item-img" src="' + escapeHtml(productImage(item.id)) + '" alt="' + escapeHtml(item.name) + '">' +
           '<div class="cp-item-info">' +
-            '<div class="cp-item-name">' + item.name + '</div>' +
+            '<div class="cp-item-name">' + escapeHtml(item.name) + '</div>' +
             '<div class="cp-item-price">' + formatPrice(item.price) + '</div>' +
           '</div>' +
           '<div class="cp-item-qty">' +
-            '<button type="button" class="cp-minus" data-key="' + key + '" aria-label="Remove one ' + item.name + '">&minus;</button>' +
+            '<button type="button" class="cp-minus" data-key="' + escapeHtml(key) + '" aria-label="Remove one ' + escapeHtml(item.name) + '">&minus;</button>' +
             '<span class="cp-item-qty-value">' + item.qty + '</span>' +
-            '<button type="button" class="cp-plus" data-key="' + key + '" aria-label="Add one more ' + item.name + '">&plus;</button>' +
+            '<button type="button" class="cp-plus" data-key="' + escapeHtml(key) + '" aria-label="Add one more ' + escapeHtml(item.name) + '">&plus;</button>' +
           '</div>' +
           '</div>';
       });
@@ -583,7 +630,7 @@ document.addEventListener('DOMContentLoaded', function () {
     var upsellSection = document.getElementById('cartPanelUpsell');
     var upsellTrack = document.getElementById('cartPanelUpsellTrack');
     if (upsellSection && upsellTrack) {
-      var candidates = UPSELL_ITEMS.filter(function (u) { return !cart[u.name]; }).slice(0, 6);
+      var candidates = UPSELL_ITEMS.filter(function (u) { return !cart[u.id]; }).slice(0, 6);
       if (keys.length === 0 || candidates.length === 0) {
         upsellSection.style.display = 'none';
         upsellTrack.innerHTML = '';
@@ -593,18 +640,18 @@ document.addEventListener('DOMContentLoaded', function () {
         candidates.forEach(function (u) {
           uHtml += '<div class="cp-upsell-card">' +
             '<div class="cp-upsell-img-wrap">' +
-              '<img src="' + productImage(u.name) + '" alt="' + u.name + '">' +
-              '<button type="button" class="cp-upsell-add" data-name="' + u.name + '" data-price="' + u.price + '" aria-label="Add ' + u.name + '">&plus;</button>' +
+              '<img src="' + escapeHtml(productImage(u.id)) + '" alt="' + escapeHtml(u.name) + '">' +
+              '<button type="button" class="cp-upsell-add" data-id="' + escapeHtml(u.id) + '" aria-label="Add ' + escapeHtml(u.name) + '">&plus;</button>' +
             '</div>' +
             '<div class="cp-upsell-price">' + formatPrice(u.price) + '</div>' +
-            '<div class="cp-upsell-name">' + u.name + '</div>' +
+            '<div class="cp-upsell-name">' + escapeHtml(u.name) + '</div>' +
             '</div>';
         });
         upsellTrack.innerHTML = uHtml;
 
         upsellTrack.querySelectorAll('.cp-upsell-add').forEach(function (btn) {
           btn.addEventListener('click', function () {
-            addToCart(btn.getAttribute('data-name'), parseFloat(btn.getAttribute('data-price')));
+            addToCart(btn.getAttribute('data-id'));
           });
         });
       }
@@ -734,11 +781,11 @@ document.addEventListener('DOMContentLoaded', function () {
     keys.forEach(function (key) {
       var item = cart[key];
       html += '<div class="cart-line-item">' +
-        '<span class="cli-name">' + item.name + '</span>' +
+        '<span class="cli-name">' + escapeHtml(item.name) + '</span>' +
         '<div class="cli-qty-controls">' +
-          '<button type="button" class="cli-qty-btn cli-minus" data-key="' + key + '" aria-label="Remove one ' + item.name + '">&minus;</button>' +
+          '<button type="button" class="cli-qty-btn cli-minus" data-key="' + escapeHtml(key) + '" aria-label="Remove one ' + escapeHtml(item.name) + '">&minus;</button>' +
           '<span class="cli-qty-value">' + item.qty + '</span>' +
-          '<button type="button" class="cli-qty-btn cli-plus" data-key="' + key + '" aria-label="Add one more ' + item.name + '">&plus;</button>' +
+          '<button type="button" class="cli-qty-btn cli-plus" data-key="' + escapeHtml(key) + '" aria-label="Add one more ' + escapeHtml(item.name) + '">&plus;</button>' +
         '</div>' +
         '<span class="cli-price">' + formatPrice(item.price * item.qty) + '</span>' +
         '</div>';
@@ -780,16 +827,12 @@ document.addEventListener('DOMContentLoaded', function () {
     renderCartPanel();
     renderFloatBar();
     renderCheckoutPage();
+    syncProductCards();
+    window.dispatchEvent(new CustomEvent('evora:cart-updated'));
   }
 
-  function addToCart(name, price) {
-    if (cart[name]) {
-      cart[name].qty += 1;
-    } else {
-      cart[name] = { name: name, price: price, qty: 1 };
-    }
-    saveCart(cart);
-    renderCart();
+  function addToCart(id) {
+    setQty(id, (cart[id] ? cart[id].qty : 0) + 1);
   }
 
   // ---------- Public cart API ----------
@@ -806,99 +849,51 @@ document.addEventListener('DOMContentLoaded', function () {
     count: function () { return cartTotals().count; }
   };
 
-  function incrementItem(key) {
-    if (!cart[key]) return;
-    cart[key].qty += 1;
+  function incrementItem(id) {
+    if (cart[id]) addToCart(id);
+  }
+
+  // Only live catalogue IDs can enter the cart; never trust a caller's price.
+  function setQty(id, qty) {
+    if (!orderingReady) return;
+    var p = productsById[id];
+    var n = Number(qty);
+    if (!p || !Number.isSafeInteger(n) || n < 0) return;
+    if (n === 0) delete cart[id];
+    else cart[id] = { id: p.id, name: p.name, price: p.price, qty: n };
     saveCart(cart);
     renderCart();
   }
 
-  // Set an item's quantity outright (0 removes it).
-  function setQty(name, price, qty) {
-    var n = parseInt(qty, 10);
-    if (!n || n < 0) n = 0;
-    if (n === 0) {
-      delete cart[name];
-    } else {
-      cart[name] = { name: name, price: price, qty: n };
-    }
-    saveCart(cart);
-    renderCart();
+  function decrementItem(id) {
+    if (cart[id]) setQty(id, cart[id].qty - 1);
   }
 
-  function decrementItem(key) {
-    if (!cart[key]) return;
-    cart[key].qty -= 1;
-    if (cart[key].qty <= 0) {
-      delete cart[key];
-    }
-    saveCart(cart);
-    renderCart();
-  }
-
-  // Wire up "Add +" buttons on the menu page.
-  // These buttons live INSIDE product links (menu-card-link anchors), so we
-  // must preventDefault/stopPropagation — otherwise adding to cart also
-  // navigates to the product page. (The proper fix is restructuring the card
-  // markup so the button is a sibling of the link, tracked separately.)
-  document.querySelectorAll('.add-btn').forEach(function (btn) {
-    btn.addEventListener('click', function (e) {
-      e.preventDefault();
-      e.stopPropagation();
-      var card = btn.closest('.menu-card');
-      if (!card) return;
-      var titleEl = card.querySelector('.menu-title');
-      var priceEl = card.querySelector('.price');
-      var name = titleEl ? titleEl.textContent.trim() : 'Item';
-      var price = priceEl ? parsePrice(priceEl.textContent) : 0;
-      addToCart(name, price);
-      showQtyControl(card);
-    });
+  // Delegation also covers related cards inserted after cartReady. Prevent
+  // the wrapping product link from navigating when a quantity button is used.
+  document.addEventListener('click', function (e) {
+    var btn = e.target.closest('.menu-card .add-btn, .menu-card .qty-btn');
+    if (!btn) return;
+    e.preventDefault();
+    e.stopPropagation();
+    var card = btn.closest('.menu-card');
+    var id = card.getAttribute('data-product-id');
+    if (btn.classList.contains('qty-minus')) decrementItem(id);
+    else addToCart(id);
   });
 
-  // Wire up quantity + / - buttons (also inside product links — see note above)
-  document.querySelectorAll('.qty-btn.qty-plus').forEach(function (btn) {
-    btn.addEventListener('click', function (e) {
-      e.preventDefault();
-      e.stopPropagation();
-      var card = btn.closest('.menu-card');
-      if (!card) return;
-      var valueEl = card.querySelector('.qty-value');
-      var titleEl = card.querySelector('.menu-title');
-      var priceEl = card.querySelector('.price');
-      var current = parseInt(valueEl.textContent, 10) || 1;
-      var next = current + 1;
-      valueEl.textContent = next;
-      var name = titleEl ? titleEl.textContent.trim() : 'Item';
-      var price = priceEl ? parsePrice(priceEl.textContent) : 0;
-      addToCart(name, price);
-    });
-  });
-
-  document.querySelectorAll('.qty-btn.qty-minus').forEach(function (btn) {
-    btn.addEventListener('click', function (e) {
-      e.preventDefault();
-      e.stopPropagation();
-      var card = btn.closest('.menu-card');
-      if (!card) return;
-      var valueEl = card.querySelector('.qty-value');
-      var titleEl = card.querySelector('.menu-title');
-      var priceEl = card.querySelector('.price');
-      var current = parseInt(valueEl.textContent, 10) || 1;
-      if (current > 1) {
-        var next = current - 1;
-        valueEl.textContent = next;
-        var name = titleEl ? titleEl.textContent.trim() : 'Item';
-        var price = priceEl ? parsePrice(priceEl.textContent) : 0;
-        removeOneFromCart(name, price);
+  function syncProductCards() {
+    document.querySelectorAll('.menu-card[data-product-id]').forEach(function (card) {
+      var item = cart[card.getAttribute('data-product-id')];
+      if (item) {
+        showQtyControl(card);
+        var value = card.querySelector('.qty-value');
+        if (value) value.textContent = String(item.qty);
       } else {
         hideQtyControl(card);
-        var name = titleEl ? titleEl.textContent.trim() : 'Item';
-        var price = priceEl ? parsePrice(priceEl.textContent) : 0;
-        removeAllFromCart(name, price);
       }
     });
-  });
+  }
 
   function showQtyControl(card) {
     var addBtn = card.querySelector('.add-btn');
@@ -914,23 +909,6 @@ document.addEventListener('DOMContentLoaded', function () {
     if (addBtn) addBtn.style.display = 'inline-flex';
     if (qtyControl) qtyControl.style.display = 'none';
     if (valueEl) valueEl.textContent = '1';
-  }
-
-  function removeOneFromCart(name, price) {
-    if (typeof cart === 'undefined' || !cart) return;
-    if (cart[name]) {
-      cart[name].qty = (cart[name].qty || 1) - 1;
-      if (cart[name].qty <= 0) delete cart[name];
-    }
-    saveCart(cart);
-    renderCart();
-  }
-
-  function removeAllFromCart(name, price) {
-    if (typeof cart === 'undefined' || !cart) return;
-    if (cart[name]) delete cart[name];
-    saveCart(cart);
-    renderCart();
   }
 
   // Floating bar opens the cart side panel
@@ -1020,6 +998,8 @@ document.addEventListener('DOMContentLoaded', function () {
   var successMessage = document.getElementById('successMessage');
   var checkoutError = document.getElementById('checkoutError');
   var placeOrderBtn = document.getElementById('placeOrderBtn');
+  var orderPending = false;
+  var orderNeedsReview = false;
 
   // Where the backend is running. The Express server in /server serves the
   // whole site AND this API from the same origin, so a relative path works
@@ -1039,7 +1019,9 @@ document.addEventListener('DOMContentLoaded', function () {
   }
 
   function setPlaceOrderLoading(isLoading) {
+    orderPending = isLoading;
     if (!placeOrderBtn) return;
+    placeOrderBtn.disabled = isLoading || orderNeedsReview;
     placeOrderBtn.classList.toggle('is-loading', isLoading);
     placeOrderBtn.textContent = isLoading ? 'Placing order…' : 'Place Order';
   }
@@ -1047,6 +1029,7 @@ document.addEventListener('DOMContentLoaded', function () {
   if (checkoutForm && checkoutContent && checkoutSuccess) {
     checkoutForm.addEventListener('submit', function (e) {
       e.preventDefault();
+      if (!orderingReady || orderPending || orderNeedsReview) return;
       hideCheckoutError();
 
       var totals = cartTotals();
@@ -1064,7 +1047,7 @@ document.addEventListener('DOMContentLoaded', function () {
       // user just filled in; items come from the cart object)
       var itemsPayload = Object.keys(cart).map(function (key) {
         var item = cart[key];
-        return { name: item.name, price: item.price, qty: item.qty };
+        return { id: item.id, name: item.name, price: item.price, qty: item.qty };
       });
 
       var orderPayload = {
@@ -1108,20 +1091,28 @@ document.addEventListener('DOMContentLoaded', function () {
           if (!result.ok) {
             var serverMsg = (result.body && (result.body.error ||
               (result.body.details && result.body.details.join('; ')))) || ('Server responded with ' + result.status);
+            if (result.status === 409) {
+              orderNeedsReview = true;
+              serverMsg += ' Reload to review current products and prices before placing your order again.';
+            }
             throw new Error(serverMsg);
           }
 
           var data = result.body || {};
           var orderId = data.orderId || ('EVR-' + Math.floor(100000 + Math.random() * 900000));
-          var payLine = paymentValue === 'cod'
-            ? "You'll pay " + formatPrice(grandTotal) + ' in cash when your order arrives.'
-            : 'Your payment of ' + formatPrice(grandTotal) + ' via ' + paymentName + ' is being confirmed.';
+          var confirmedTotal = data.totals && data.totals.total;
+          var payLine = 'Please check your confirmation for payment details.';
+          if (typeof confirmedTotal === 'number' && Number.isFinite(confirmedTotal)) {
+            payLine = paymentValue === 'cod'
+              ? "You'll pay " + formatPrice(confirmedTotal) + ' in cash when your order arrives.'
+              : 'Your payment of ' + formatPrice(confirmedTotal) + ' via ' + paymentName + ' is being confirmed.';
+          }
 
           if (successMessage) {
             successMessage.textContent = 'Order #' + orderId + ' placed! ' + payLine;
           }
 
-          cart = {};
+          cart = Object.create(null);
           saveCart(cart);
           renderCart();
 
@@ -1153,6 +1144,32 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     });
   }
+
+    orderingReady = true;
+    lockOrdering(false);
+    resolveCartReady(window.EVORA_CART);
+    window.dispatchEvent(new CustomEvent('evora:cart-ready'));
+  } catch (err) {
+    orderingReady = false;
+    window.EVORA_CART = null;
+    lockOrdering(true);
+    var message = 'Products could not be loaded. Ordering is unavailable. Please reload to try again.';
+    document.querySelectorAll('[data-products]').forEach(function (grid) {
+      grid.textContent = message;
+      grid.setAttribute('aria-busy', 'false');
+      grid.setAttribute('role', 'alert');
+    });
+    var notice = document.createElement('p');
+    notice.className = 'checkout-error';
+    notice.setAttribute('role', 'alert');
+    notice.textContent = message;
+    var header = document.querySelector('header');
+    if (header) header.insertAdjacentElement('afterend', notice);
+    else document.body.appendChild(notice);
+    rejectCartReady(err);
+  }
+  }
+  initStorefront();
 
   // ---------- Highlight current page ----------
   var currentPage = window.location.pathname.split('/').pop() || 'index.html';
@@ -1205,4 +1222,5 @@ document.addEventListener('DOMContentLoaded', function () {
     syncFloatingVisibility();
   }
 
-});
+  });
+})();

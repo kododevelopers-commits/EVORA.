@@ -27,7 +27,9 @@ const rateLimit = require('express-rate-limit');
 
 const storage = require('./lib/storage');
 const validation = require('./lib/validation');
-const { requireAdmin } = require('./lib/auth');
+const { requireAdmin, requireManager, requireOwner, sameOrigin, startLogin, verifyLogin, logout } = require('./lib/auth');
+const staff = require('./lib/staff');
+const products = require('./lib/products');
 const mailer = require('./lib/mailer');
 
 const app = express();
@@ -41,10 +43,6 @@ app.set('trust proxy', 1);
 // style.css, script.js, admin.js, assets/) live TWO folders up from this
 // server/ folder — at the top of the project, with assets/ as a sibling.
 const SITE_ROOT = path.join(__dirname, '..', '..');
-// The product catalogue lives at the project root (catalog.js) so the browser
-// and the server read the SAME copy. Prices used to verify orders therefore
-// can never drift from the prices shown on the site.
-const CATALOG = require('../../catalog.js');
 const ORDERS_KEY = 'orders';
 const CONTACTS_KEY = 'contacts';
 
@@ -111,7 +109,7 @@ app.use(function (req, res, next) {
   if (origin && originAllowed(origin)) {
     res.set('Access-Control-Allow-Origin', origin);
     res.set('Vary', 'Origin');
-    res.set('Access-Control-Allow-Methods', 'GET,POST,PATCH,OPTIONS');
+    res.set('Access-Control-Allow-Methods', 'GET,POST,PATCH,DELETE,OPTIONS');
     res.set('Access-Control-Allow-Headers', 'Content-Type,x-admin-key,x-admin-email');
   }
   // Pre-flight requests never carry a body — answer them here.
@@ -121,7 +119,12 @@ app.use(function (req, res, next) {
   next();
 });
 
-app.use(express.json());  // parses incoming JSON bodies (req.body)
+app.use('/api/admin', sameOrigin, function (req, res, next) {
+  res.set('Cache-Control', 'private, no-store');
+  next();
+});
+app.use('/api/admin/product-images', express.json({ limit: '3mb' }));
+app.use(express.json());
 
 // Never serve the server's own folder. Without this guard, express.static
 // would happily hand out assets/server/data/orders.json and contacts.json —
@@ -736,19 +739,28 @@ app.get('/health', function (req, res) {
 // ---------------------------------------------------------------------------
 // Menu
 // ---------------------------------------------------------------------------
-app.get('/api/menu', function (req, res) {
-  // ?category=men filter
-  const filter = (req.query.category || '').toLowerCase();
-  const items = CATALOG.items.filter(function (it) {
-    return !filter || filter === 'all' || it.category === filter;
-  });
-  res.json({ categories: CATALOG.categories, items: items });
+app.get('/api/menu', async function (req, res) {
+  res.set('Cache-Control', 'no-store');
+  try {
+    const catalog = await products.list();
+    const filter = String(req.query.category || '').toLowerCase();
+    const items = catalog.items.filter(item => item.available !== false && (!filter || filter === 'all' || item.category === filter));
+    res.json({ categories: catalog.categories, items });
+  } catch (err) {
+    res.status(503).json({ error: 'Could not load products. Please try again.' });
+  }
 });
 
-app.get('/api/menu/:id', function (req, res) {
-  const item = CATALOG.items.find(function (it) { return it.id === req.params.id; });
-  if (!item) return res.status(404).json({ error: 'Menu item not found.' });
-  res.json(item);
+app.get('/api/menu/:id', async function (req, res) {
+  res.set('Cache-Control', 'no-store');
+  try {
+    const catalog = await products.list();
+    const item = catalog.items.find(item => item.id === req.params.id && item.available !== false);
+    if (!item) return res.status(404).json({ error: 'Menu item not found.' });
+    res.json(item);
+  } catch (err) {
+    res.status(503).json({ error: 'Could not load products.' });
+  }
 });
 
 // ---------------------------------------------------------------------------
@@ -778,33 +790,27 @@ app.post('/api/orders', writeLimiter, async function (req, res) {
     return res.status(400).json({ error: 'Invalid order', details: fieldErrors });
   }
 
-  // ----- Server-side pricing -----
-  // NEVER trust prices or totals sent by the browser — anyone can edit them
-  // with devtools. We recompute everything from our own catalog.js. The client
-  // still sends name/qty (and its own price, which we ignore).
+  // Reject stale prices rather than silently charging more than the cart displayed.
   const GST_RATE = 0.18;
   const DELIVERY_CHARGE = 200;
 
-  // Prices come from the shared catalogue required at startup.
-  const menuItems = CATALOG.items;
-
-  const priceLookup = {};
-  menuItems.forEach(function (m) { priceLookup[m.name.toLowerCase()] = m.price; });
+  let menuItems;
+  try {
+    menuItems = (await products.list()).items;
+  } catch (err) {
+    return res.status(503).json({ error: 'Could not check current prices. Please try again.' });
+  }
 
   const cleanItems = [];
   let subtotal = 0;
   for (let i = 0; i < items.length; i++) {
-    const name = validation.trim(items[i].name);
-    const qty = Number(items[i].qty);
-    const menuPrice = priceLookup[name.toLowerCase()];
-    if (menuPrice === undefined) {
-      return res.status(400).json({
-        error: 'Invalid order',
-        details: ['items[' + i + ']: unknown item "' + name + '"']
-      });
-    }
-    subtotal += menuPrice * qty;
-    cleanItems.push({ name: name, qty: qty, price: menuPrice });
+    const input = items[i];
+    const product = menuItems.find(item => input.id ? item.id === input.id : item.name.toLowerCase() === validation.trim(input.name).toLowerCase());
+    if (!product || product.available === false) return res.status(409).json({ error: 'An item is no longer available. Reload the page and review your cart.' });
+    if (Number(input.price) !== product.price) return res.status(409).json({ error: 'A product price has changed. Reload the page and review your cart before ordering.' });
+    const qty = Number(input.qty);
+    subtotal += product.price * qty;
+    cleanItems.push({ id: product.id, name: product.name, qty, price: product.price });
   }
 
   const gst = Math.round(subtotal * GST_RATE);
@@ -865,7 +871,8 @@ app.post('/api/orders', writeLimiter, async function (req, res) {
     res.status(201).json({
       success: true,
       orderId: order.orderId,
-      status: order.status
+      status: order.status,
+      totals: order.totals
     });
   } catch (err) {
     console.error('Error saving order:', err);
@@ -889,6 +896,14 @@ app.get('/api/orders/:id', function (req, res) {
 // List all orders. Admin-only: the response includes every customer's name,
 // email, phone and address, so it must never be public. (The customer-facing
 // single-order lookup stays public below — it needs the exact order id.)
+
+function hideMoneyFor(req, order) {
+  if (!req.admin || req.admin.role !== 'viewer') return order;
+  const copy = Object.assign({}, order);
+  delete copy.totals;
+  return copy;
+}
+
 app.get('/api/orders', requireAdmin, function (req, res) {
   storage.read(ORDERS_KEY).then(function (orders) {
     // Newest first
@@ -898,15 +913,16 @@ app.get('/api/orders', requireAdmin, function (req, res) {
     // ?status= filter (e.g. status=preparing)
     const filter = req.query.status;
     const filtered = filter ? sorted.filter(function (o) { return o.status === filter; }) : sorted;
-    res.json(filtered);
+    res.json(filtered.map(function (o) { return hideMoneyFor(req, o); }));
   }).catch(function (err) {
     console.error('Error reading orders:', err);
     res.status(500).json({ error: 'Could not read orders.' });
   });
 });
 
-// Update an order's status (admin). Admin-only.
-app.patch('/api/orders/:id/status', requireAdmin, writeLimiter, function (req, res) {
+// Update an order's status. Owner + admin only — a viewer's account is
+// read-only, so the dropdown never reaches this route.
+app.patch('/api/orders/:id/status', sameOrigin, requireAdmin, requireManager, writeLimiter, function (req, res) {
   const newStatus = (req.body && req.body.status) || '';
   if (!ORDER_STATUSES.includes(newStatus)) {
     return res.status(400).json({
@@ -1026,26 +1042,62 @@ app.get('/api/stats', requireAdmin, function (req, res) {
       .sort(function (a, b) { return b.qty - a.qty; })
       .slice(0, 10);
 
+    const orderStats = {
+      total: orders.length,
+      byStatus: counts,
+      revenue: Math.round(revenue)
+    };
+
+    if (req.admin && req.admin.role === 'viewer') {
+      delete orderStats.total;
+      delete orderStats.revenue;
+    }
+
     res.json({
-      orders: {
-        total: orders.length,
-        byStatus: counts,
-        revenue: Math.round(revenue)
-      },
+      orders: orderStats,
       contacts: {
         total: contacts.length
       },
       topItems: topItems,
-      // Whether outgoing email is working, and whether anything failed to
-      // send. The dashboard turns this into a red banner so a broken mail
-      // setup can never silently swallow a complaint.
-      email: mailer.stats()
+      email: req.admin.role === 'owner' ? mailer.stats() : null
     });
   }).catch(function (err) {
     console.error('Error computing stats:', err);
     res.status(500).json({ error: 'Could not compute stats.' });
   });
 });
+
+const loginLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 6, standardHeaders: true, legacyHeaders: false,
+  message: { error: 'Too many sign-in requests. Please try again in 15 minutes.' } });
+const verifyLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 12, standardHeaders: true, legacyHeaders: false,
+  message: { error: 'Too many code attempts. Please try again in 15 minutes.' } });
+
+app.post('/api/admin/login', loginLimiter, startLogin);
+app.post('/api/admin/verify', verifyLimiter, verifyLogin);
+app.post('/api/admin/logout', logout);
+app.get('/api/admin/me', requireAdmin, (req, res) => res.json(req.admin));
+
+function adminAction(handler) {
+  return async function (req, res) {
+    try {
+      await handler(req, res);
+    } catch (err) {
+      const status = err.status && err.status < 500 ? err.status : 503;
+      res.status(status).json({ error: status < 500 ? err.message : 'Could not save or load changes. Please try again.' });
+    }
+  };
+}
+
+app.get('/api/admin/staff', requireAdmin, adminAction(async (req, res) => res.json(await staff.list())));
+app.post('/api/admin/staff', requireAdmin, requireOwner, writeLimiter, adminAction(async (req, res) => res.status(201).json(await staff.add(req.body))));
+app.patch('/api/admin/staff/:email', requireAdmin, requireOwner, writeLimiter, adminAction(async (req, res) => res.json(await staff.update(req.params.email, req.body))));
+app.delete('/api/admin/staff/:email', requireAdmin, requireOwner, writeLimiter, adminAction(async (req, res) => {
+  await staff.remove(req.params.email);
+  res.json({ success: true });
+}));
+app.get('/api/admin/products', requireAdmin, requireManager, adminAction(async (req, res) => res.json(await products.list())));
+app.patch('/api/admin/products/:id', requireAdmin, requireManager, writeLimiter, adminAction(async (req, res) => res.json(await products.update(req.params.id, req.body))));
+app.post('/api/admin/product-images', requireAdmin, requireManager, writeLimiter, adminAction(async (req, res) => res.status(201).json(await products.upload(req.body))));
 
 // ---------------------------------------------------------------------------
 // 404 for unknown /api routes

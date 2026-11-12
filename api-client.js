@@ -59,11 +59,26 @@
     }
   }
 
-  // A candidate only counts if it answers the menu API.
+  // Never expose the bundled seed as live storefront data. The successful
+  // discovery request supplies the catalogue too; there is no second GET race.
+  global.EVORA_CATALOG = null;
+
   function probe(url) {
     return fetch(url + PROBE_PATH, { method: 'GET', cache: 'no-store' })
-      .then(function (r) { return r.ok; })
-      .catch(function () { return false; });
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (catalog) {
+        if (!catalog || !Array.isArray(catalog.categories) || !Array.isArray(catalog.items)) return null;
+        var ids = new Set();
+        var valid = catalog.items.every(function (p) {
+          if (!p || typeof p.id !== 'string' || !p.id || ids.has(p.id) ||
+              typeof p.name !== 'string' || !p.name ||
+              typeof p.price !== 'number' || !Number.isFinite(p.price) || p.price < 0) return false;
+          ids.add(p.id);
+          return true;
+        });
+        return valid ? catalog : null;
+      })
+      .catch(function () { return null; });
   }
 
   function resolve() {
@@ -75,9 +90,10 @@
           return Promise.reject(new Error('backend-not-found'));
         }
         var url = candidates[i];
-        return probe(url).then(function (ok) {
-          if (ok) {
+        return probe(url).then(function (catalog) {
+          if (catalog) {
             base = url;
+            global.EVORA_CATALOG = catalog;
             return base;
           }
           return next(i + 1)();
@@ -144,14 +160,16 @@
     }
   };
 
-  // Warm it up as soon as the page is ready, so the first order is instant.
+  // Publish immediately so all consumers await the same discovery response.
+  // A failed catalogue stays failed for this page; reload before ordering.
+  global.EVORA_API.catalogReady = resolve().then(function () {
+    return global.EVORA_CATALOG;
+  });
+  global.EVORA_API.catalogReady.catch(function () { /* handled below / by storefront */ });
+
   if (global.document) {
     var start = function () {
-      resolve().then(function (b) {
-        if (global.console && console.info) {
-          console.info('Evora backend: ' + b);
-        }
-      }).catch(function () {
+      global.EVORA_API.catalogReady.catch(function () {
         showBackendDown();
       });
     };

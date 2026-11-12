@@ -1,26 +1,29 @@
-// ============================================================================
-// admin.js — small dashboard for viewing orders and contact submissions
-// ----------------------------------------------------------------------------
-// Runs on /admin.html. Sign-in is two steps: an allowed account email, then
-// the admin API key as the password. The pair is kept as a session object in
-// sessionStorage (or localStorage with "Remember me"), and sent on every
-// protected request as x-admin-email + x-admin-key.
-// ============================================================================
-
 (function () {
-  var SESSION_KEY = 'evoraAdminSession';
-  var OWNER_EMAIL = 'evora.reply@gmail.com';
+  'use strict';
 
-  // Friendly names shown on the account button and menu instead of the raw
-  // email address.
-  var ACCOUNT_NAMES = {
-    'evora.reply@gmail.com': 'EVORA',
-    'kododevelopers@gmail.com': 'KODO',
-    'muhammadammarsheikh11@gmail.com': 'Ammar Sheikh'
-  };
-  function displayName(email) {
-    return ACCOUNT_NAMES[email] || email;
-  }
+  var identity = null;
+  var sessionVersion = 0;
+  var pendingEmail = '';
+  var authBusy = false;
+  var loggingOut = false;
+  var activeTab = 'orders';
+  var allOrders = [];
+  var allContacts = [];
+  var allStaff = [];
+  var allProducts = [];
+  var categories = [];
+  var lastStats = null;
+  var dashboardRequest = 0;
+  var productRequest = 0;
+  var loadingCount = 0;
+  var mutationCount = 0;
+  var editorVersion = 0;
+  var editingProductId = null;
+  var editingProductVersion = null;
+  var savingProduct = false;
+
+  function canEdit() { return !!identity && ['owner', 'admin'].includes(identity.role); }
+  function isOwner() { return !!identity && identity.role === 'owner'; }
 
   var els = {
     gate:        document.getElementById('gate'),
@@ -56,6 +59,15 @@
     logoutBtn:    document.getElementById('logoutBtn')
   };
 
+  ['verifyForm', 'loginCode', 'verifyEmail', 'verifyErr', 'restartLogin',
+    'orderTotalHeading', 'orderActionsHeading', 'emailAlert', 'emailAlertText',
+    'staffForm', 'staffName', 'staffEmail', 'staffRole', 'staffBody', 'staffActionsHeading', 'staffRefresh',
+    'productsTab', 'productsBody', 'productSearch', 'productsRefresh', 'productDialog', 'productForm',
+    'productName', 'productPrice', 'productCategory', 'productDescription', 'productImage', 'productHoverImage',
+    'productImageFile', 'productHoverFile', 'productAvailable', 'productImagePreview', 'productHoverPreview',
+    'productEditorTitle', 'productIdText', 'productError', 'saveProduct', 'cancelProduct'
+  ].forEach(function (id) { els[id] = document.getElementById(id); });
+
   // -------- Toast --------
   var toastTimer = null;
   function toast(msg, kind) {
@@ -68,125 +80,225 @@
     }, 2400);
   }
 
-  // -------- Auth --------
-  // A session is { email, key }. "Remember me" stores it in localStorage so
-  // the next visit on this device skips the gate; otherwise sessionStorage,
-  // which dies with the tab.
-  function readSession(store) {
-    try {
-      var raw = store.getItem(SESSION_KEY);
-      if (!raw) return null;
-      var s = JSON.parse(raw);
-      if (s && s.email && s.key) return s;
-    } catch (e) { /* corrupt entry — treat as logged out */ }
-    return null;
+  function formError(box, message) {
+    box.textContent = message || '';
+    box.style.display = message ? '' : 'none';
   }
-  function getSession() {
-    return readSession(sessionStorage) || readSession(localStorage);
-  }
-  function setSession(email, key, remember) {
-    clearSession();
-    var raw = JSON.stringify({ email: email, key: key });
-    if (remember) localStorage.setItem(SESSION_KEY, raw);
-    else sessionStorage.setItem(SESSION_KEY, raw);
-  }
-  function clearSession() {
-    sessionStorage.removeItem(SESSION_KEY);
-    localStorage.removeItem(SESSION_KEY);
-  }
-  function getEmail() { var s = getSession(); return s ? s.email : ''; }
-  function getKey() { var s = getSession(); return s ? s.key : ''; }
 
-  var pendingEmail = '';
+  function setAuthBusy(busy) {
+    authBusy = busy;
+    [els.emailForm, els.loginForm, els.verifyForm].forEach(function (form) {
+      form.querySelectorAll('input, button').forEach(function (control) { control.disabled = busy; });
+    });
+  }
 
   function showGateStep(step) {
     els.emailForm.style.display = step === 1 ? '' : 'none';
     els.loginForm.style.display = step === 2 ? '' : 'none';
-    if (step === 2) els.emailChip.textContent = pendingEmail;
+    els.verifyForm.style.display = step === 3 ? '' : 'none';
+    els.emailChip.textContent = pendingEmail;
+    els.verifyEmail.textContent = pendingEmail;
+    [els.emailErr, els.loginErr, els.verifyErr].forEach(function (box) { formError(box, ''); });
   }
 
-  function showGate(errorMsg, errFor) {
+  function clearCachedRows() {
+    allOrders = [];
+    allContacts = [];
+    allStaff = [];
+    allProducts = [];
+    categories = [];
+    lastStats = null;
+    dashboardRequest++;
+    productRequest++;
+    ['ordersBody', 'contactsBody', 'staffBody', 'productsBody', 'statsRow', 'emailAlertText'].forEach(function (id) {
+      els[id].textContent = '';
+    });
+    els.ordersBadge.style.display = 'none';
+    els.contactsBadge.style.display = 'none';
+    els.emailAlert.style.display = 'none';
+    closeProductEditor();
+  }
+
+  function showGate(message) {
+    sessionVersion++;
+    identity = null;
+    pendingEmail = '';
+    clearCachedRows();
+    els.apiKey.value = '';
+    els.loginCode.value = '';
+    els.adminEmail.value = '';
+    els.rememberMe.checked = false;
+    els.staffForm.reset();
+    els.productSearch.value = '';
+    els.searchInput.value = '';
+    els.statusFilter.value = '';
+    els.accountMenu.hidden = true;
+    els.accountBtn.setAttribute('aria-expanded', 'false');
+    ['accountEmail', 'accountAvatar', 'menuName', 'menuEmail', 'menuRole'].forEach(function (id) { els[id].textContent = ''; });
     els.dashboard.style.display = 'none';
     els.accountWrap.style.display = 'none';
     els.gate.style.display = '';
-    showGateStep(pendingEmail ? 2 : 1);
-    els.emailErr.style.display = 'none';
-    els.loginErr.style.display = 'none';
-    if (errorMsg) {
-      var box = errFor === 'email' ? els.emailErr : els.loginErr;
-      box.textContent = errorMsg;
-      box.style.display = '';
-    }
+    els.productsTab.hidden = true;
+    els.staffForm.hidden = true;
+    switchTab('orders');
+    showGateStep(1);
+    formError(els.emailErr, message);
+    els.status.textContent = 'Signed out';
+    els.status.style.color = '';
+    els.toast.classList.remove('show');
   }
 
-  function renderAccount() {
-    var email = getEmail();
-    var name = displayName(email);
+  function applyIdentity(member) {
+    if (!member || !member.email || !['owner', 'admin', 'viewer'].includes(member.role)) {
+      throw new Error('The server returned an invalid account. Please sign in again.');
+    }
+    if (identity && (identity.email !== member.email || identity.role !== member.role)) {
+      sessionVersion++;
+      clearCachedRows();
+      els.staffForm.reset();
+    }
+    identity = member;
+    var name = member.name || member.email;
     els.accountAvatar.textContent = (name.charAt(0) || '?').toUpperCase();
     els.accountEmail.textContent = name;
     els.menuName.textContent = name;
-    els.menuEmail.textContent = email;
-    els.menuRole.textContent = email === OWNER_EMAIL ? 'Owner' : 'Admin';
+    els.menuEmail.textContent = member.email;
+    els.menuRole.textContent = member.role.charAt(0).toUpperCase() + member.role.slice(1);
+    els.orderTotalHeading.hidden = !canEdit();
+    els.orderActionsHeading.hidden = !canEdit();
+    els.staffActionsHeading.hidden = !isOwner();
+    els.staffForm.hidden = !isOwner();
+    els.productsTab.hidden = !canEdit();
+    if (!canEdit()) {
+      els.emailAlert.style.display = 'none';
+      closeProductEditor();
+      if (activeTab === 'products') switchTab('orders');
+    }
   }
 
-  function enterDashboard() {
+  function enterDashboard(member) {
+    sessionVersion++;
+    applyIdentity(member);
+    pendingEmail = '';
+    els.apiKey.value = '';
+    els.loginCode.value = '';
+    els.adminEmail.value = '';
+    els.emailChip.textContent = '';
+    els.verifyEmail.textContent = '';
     els.gate.style.display = 'none';
     els.dashboard.style.display = '';
-    renderAccount();
     els.accountWrap.style.display = '';
     loadAll();
   }
 
-  // Step 1 — collect the email. Whether it is allowed is decided by the
-  // server when the password goes in with it.
+  async function request(path, opts) {
+    opts = opts || {};
+    var response = await fetch(path, Object.assign({}, opts, {
+      credentials: 'same-origin', cache: 'no-store', redirect: 'error',
+      headers: opts.body ? { 'Content-Type': 'application/json' } : {}
+    }));
+    var body = await response.json().catch(function () { return null; });
+    if (!response.ok) {
+      var error = new Error((body && body.error) || ('Request failed: ' + response.status));
+      error.status = response.status;
+      throw error;
+    }
+    if (body === null && response.status !== 204) throw new Error('Invalid server response. Open the dashboard through the Evora backend.');
+    return body;
+  }
+
+  function staleError() { return Object.assign(new Error('Request no longer applies.'), { stale: true }); }
+
+  async function api(path, opts) {
+    var version = sessionVersion;
+    if (loggingOut) throw staleError();
+    try {
+      var result = await request(path, opts);
+      if (version !== sessionVersion || loggingOut) throw staleError();
+      return result;
+    } catch (err) {
+      if (version !== sessionVersion || loggingOut) throw staleError();
+      if (err.status === 401) showGate(err.message || 'Session expired — please sign in again.');
+      throw err;
+    }
+  }
+
+  async function refreshIdentity() {
+    if (!identity || loggingOut) throw staleError();
+    applyIdentity(await api('/api/admin/me'));
+  }
+
+  function reportError(err) {
+    if (err.stale || err.status === 401) return;
+    toast(err.message || 'Could not reach the server. Please try again.', 'error');
+    if (err.status === 403 && identity) refreshIdentity().catch(function (error) {
+      if (!error.stale && error.status !== 401) toast(error.message, 'error');
+    });
+  }
+
   els.emailForm.addEventListener('submit', function (e) {
     e.preventDefault();
+    if (authBusy || !els.emailForm.reportValidity()) return;
     var email = els.adminEmail.value.trim().toLowerCase();
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-      els.emailErr.textContent = 'Enter a valid email address.';
-      els.emailErr.style.display = '';
+      formError(els.emailErr, 'Enter a valid email address.');
       return;
     }
     pendingEmail = email;
-    els.emailErr.style.display = 'none';
-    els.loginErr.style.display = 'none';
     showGateStep(2);
     els.apiKey.focus();
   });
 
-  els.changeEmail.addEventListener('click', function () {
+  function restartLogin() {
+    if (authBusy) return;
     pendingEmail = '';
-    els.loginErr.style.display = 'none';
+    els.apiKey.value = '';
+    els.loginCode.value = '';
     showGateStep(1);
     els.adminEmail.focus();
-  });
+  }
+  els.changeEmail.addEventListener('click', restartLogin);
+  els.restartLogin.addEventListener('click', restartLogin);
 
-  // Step 2 — email + key go to the server; it decides who gets in.
-  els.loginForm.addEventListener('submit', function (e) {
+  els.loginForm.addEventListener('submit', async function (e) {
     e.preventDefault();
-    var key = els.apiKey.value.trim();
-    if (!key || !pendingEmail) return;
-    EVORA_API.fetch('/api/stats', {
-      headers: { 'x-admin-key': key, 'x-admin-email': pendingEmail }
-    })
-      .then(function (r) {
-        if (r.status === 403) throw new Error('This email is not allowed to access the admin panel.');
-        if (r.status === 401) throw new Error('Wrong password — try again.');
-        if (r.status === 503) throw new Error('Server has no ADMIN_API_KEY configured.');
-        if (!r.ok) throw new Error('Server returned ' + r.status);
-        setSession(pendingEmail, key, els.rememberMe.checked);
-        enterDashboard();
-      })
-      .catch(function (err) {
-        clearSession();
-        var msg = (err && err.message === 'backend-not-found')
-          ? "The Evora backend isn't running. Start it by double-clicking start-evora.cmd in the project folder, then try again."
-          : err.message;
-        showGate(msg, 'password');
-      });
+    if (authBusy || !pendingEmail || !els.loginForm.reportValidity()) return;
+    setAuthBusy(true);
+    formError(els.loginErr, '');
+    var operation = request('/api/admin/login', {
+      method: 'POST', body: JSON.stringify({ email: pendingEmail, key: els.apiKey.value })
+    });
+    els.apiKey.value = '';
+    try {
+      await operation;
+      showGateStep(3);
+    } catch (err) {
+      formError(els.loginErr, err.message);
+    } finally {
+      setAuthBusy(false);
+      if (els.verifyForm.style.display !== 'none') els.loginCode.focus();
+      else els.apiKey.focus();
+    }
   });
 
-  // -------- Account menu --------
+  els.verifyForm.addEventListener('submit', async function (e) {
+    e.preventDefault();
+    if (authBusy || !pendingEmail || !els.verifyForm.reportValidity()) return;
+    setAuthBusy(true);
+    formError(els.verifyErr, '');
+    try {
+      var member = await request('/api/admin/verify', {
+        method: 'POST', body: JSON.stringify({ email: pendingEmail, code: els.loginCode.value.trim(), remember: els.rememberMe.checked })
+      });
+      enterDashboard(member);
+    } catch (err) {
+      formError(els.verifyErr, err.message);
+    } finally {
+      els.loginCode.value = '';
+      setAuthBusy(false);
+    }
+  });
+
   els.accountBtn.addEventListener('click', function (e) {
     e.stopPropagation();
     els.accountMenu.hidden = !els.accountMenu.hidden;
@@ -196,38 +308,24 @@
     els.accountMenu.hidden = true;
     els.accountBtn.setAttribute('aria-expanded', 'false');
   });
-  els.logoutBtn.addEventListener('click', function () {
-    clearSession();
-    pendingEmail = '';
-    els.apiKey.value = '';
-    els.rememberMe.checked = false;
-    els.accountMenu.hidden = true;
-    allOrders = [];
-    showGate();
+  els.logoutBtn.addEventListener('click', async function () {
+    if (loggingOut) return;
+    loggingOut = true;
+    sessionVersion++;
+    clearCachedRows();
+    els.logoutBtn.disabled = true;
+    try {
+      await request('/api/admin/logout', { method: 'POST' });
+      showGate();
+    } catch (err) {
+      if (err.status === 401) showGate();
+      else toast('Could not sign out. Please try again. ' + err.message, 'error');
+    } finally {
+      loggingOut = false;
+      els.logoutBtn.disabled = false;
+      if (identity) loadAll();
+    }
   });
-
-  // -------- API --------
-  function api(path, opts) {
-    opts = opts || {};
-    var headers = Object.assign({ 'x-admin-key': getKey(), 'x-admin-email': getEmail() }, opts.headers || {});
-    if (opts.body && !headers['Content-Type']) headers['Content-Type'] = 'application/json';
-    return EVORA_API.fetch(path, Object.assign({}, opts, { headers: headers })).then(function (r) {
-      if (r.status === 401 || r.status === 403) {
-        pendingEmail = getEmail();
-        clearSession();
-        showGate(r.status === 403
-          ? 'This email is not allowed to access the admin panel.'
-          : 'Session expired — please sign in again.', 'password');
-        throw new Error('Unauthorized');
-      }
-      if (!r.ok) {
-        return r.json().catch(function () { return {}; }).then(function (body) {
-          throw new Error(body.error || ('Request failed: ' + r.status));
-        });
-      }
-      return r.json();
-    });
-  }
 
   // -------- Render helpers --------
   function escapeHtml(s) {
@@ -285,10 +383,12 @@
   function renderStats(stats) {
     var o = stats.orders || {};
     var html = '';
-    html += '<div class="stat"><div class="label">Total orders</div><div class="value">' +
-            (o.total || 0) + '</div><div class="sub">all time</div></div>';
-    html += '<div class="stat revenue"><div class="label">Revenue</div><div class="value">' +
-            formatMoney(o.revenue || 0) + '</div><div class="sub">excl. cancelled</div></div>';
+    if (canEdit()) {
+      html += '<div class="stat"><div class="label">Total orders</div><div class="value">' +
+              escapeHtml(o.total || 0) + '</div><div class="sub">all time</div></div>';
+      html += '<div class="stat revenue"><div class="label">Revenue</div><div class="value">' +
+              formatMoney(o.revenue || 0) + '</div><div class="sub">excl. cancelled</div></div>';
+    }
     var byStatus = o.byStatus || {};
     html += '<div class="stat"><div class="label">Received</div><div class="value">' +
             (byStatus.received || 0) + '</div><div class="sub">awaiting action</div></div>';
@@ -302,9 +402,9 @@
   }
 
   // -------- Orders --------
-  var allOrders = [];
-
   function renderOrders() {
+    if (!identity) return;
+    var editable = canEdit();
     var statusFilter = els.statusFilter.value;
     var search = (els.searchInput.value || '').toLowerCase().trim();
 
@@ -320,67 +420,71 @@
     });
 
     if (rows.length === 0) {
-      els.ordersBody.innerHTML = '<tr><td colspan="6" class="empty">No orders match.</td></tr>';
+      els.ordersBody.innerHTML = '<tr><td colspan="' + (editable ? 6 : 4) + '" class="empty">No orders match.</td></tr>';
       return;
     }
 
     var html = rows.map(function (o) {
       var items = (o.items || []).map(function (it) {
-        return '<span class="item-line">' + it.qty + '× ' + escapeHtml(it.name) + '</span>';
+        return '<span class="item-line">' + escapeHtml(it.qty) + '× ' + escapeHtml(it.name) + '</span>';
       }).join('');
       var c = o.customer || {};
       return '<tr data-id="' + escapeHtml(o.orderId) + '">' +
         '<td>' +
           '<div class="order-id">' + escapeHtml(o.orderId) + '</div>' +
-          '<div class="customer-meta">' + formatDate(o.receivedAt) + '</div>' +
+          '<div class="customer-meta">' + escapeHtml(formatDate(o.receivedAt)) + '</div>' +
         '</td>' +
         '<td>' +
           '<div class="customer-name">' + escapeHtml(c.name) + '</div>' +
           '<div class="customer-meta">' + escapeHtml(c.email) + '</div>' +
           '<div class="customer-meta">' + escapeHtml(c.phone) + '</div>' +
-          '<a class="reply-link" target="_blank" rel="noopener" href="' +
-            replyMailto(c.email, 'Your Evora order ' + o.orderId) + '">Reply by email</a>' +
+          (editable ? '<a class="reply-link" target="_blank" rel="noopener" href="' +
+            escapeHtml(replyMailto(c.email, 'Your Evora order ' + o.orderId)) + '">Reply by email</a>' : '') +
         '</td>' +
         '<td class="items-cell">' + items + '</td>' +
-        '<td class="total">' + formatMoney(o.totals && o.totals.total) + '<br>' +
+        (editable ? '<td class="total">' + formatMoney(o.totals && o.totals.total) + '<br>' +
           '<span class="customer-meta">' + escapeHtml((o.payment && o.payment.methodLabel) || '') + '</span>' +
-        '</td>' +
+        '</td>' : '') +
         '<td>' + statusPill(o.status) + '</td>' +
-        '<td>' +
+        (editable ? '<td>' +
           '<div class="row-actions">' +
-            '<select data-id="' + escapeHtml(o.orderId) + '">' +
+            '<select aria-label="Status for ' + escapeHtml(o.orderId) + '" data-id="' + escapeHtml(o.orderId) + '">' +
               ['received','preparing','out_for_delivery','delivered','cancelled'].map(function (s) {
                 return '<option value="' + s + '"' + (s === o.status ? ' selected' : '') + '>' +
                        s.replace(/_/g, ' ') + '</option>';
               }).join('') +
             '</select>' +
-            '<button data-save="' + escapeHtml(o.orderId) + '">Save</button>' +
+            '<button type="button" data-save="' + escapeHtml(o.orderId) + '">Save</button>' +
           '</div>' +
-        '</td>' +
+        '</td>' : '') +
       '</tr>';
     }).join('');
     els.ordersBody.innerHTML = html;
 
-    // Wire up save buttons
-    Array.prototype.forEach.call(els.ordersBody.querySelectorAll('button[data-save]'), function (btn) {
-      btn.addEventListener('click', function () {
+    els.ordersBody.querySelectorAll('button[data-save]').forEach(function (btn) {
+      btn.addEventListener('click', async function () {
+        if (!canEdit() || mutationCount || loggingOut) return;
         var id = btn.getAttribute('data-save');
-        var sel = els.ordersBody.querySelector('select[data-id="' + id + '"]');
-        var newStatus = sel ? sel.value : '';
+        var sel = btn.closest('tr').querySelector('select');
         btn.disabled = true;
+        sel.disabled = true;
         btn.textContent = 'Saving…';
-        api('/api/orders/' + encodeURIComponent(id) + '/status', {
-          method: 'PATCH',
-          body: JSON.stringify({ status: newStatus })
-        }).then(function () {
+        mutationCount++;
+        dashboardRequest++;
+        try {
+          await api('/api/orders/' + encodeURIComponent(id) + '/status', {
+            method: 'PATCH', body: JSON.stringify({ status: sel.value })
+          });
           toast('Status updated for ' + id, 'success');
-          return loadAll();
-        }).catch(function (err) {
-          toast(err.message, 'error');
-        }).then(function () {
+          await loadAll();
+        } catch (err) {
+          reportError(err);
+        } finally {
+          mutationCount--;
           btn.disabled = false;
+          sel.disabled = false;
           btn.textContent = 'Save';
-        });
+        }
       });
     });
   }
@@ -395,7 +499,7 @@
     var text = document.getElementById('emailAlertText');
     if (!box || !text) return;
 
-    if (!email) {
+    if (!canEdit() || !email) {
       box.style.display = 'none';
       return;
     }
@@ -408,8 +512,8 @@
     }
 
     if (email.failed > 0) {
-      var when = email.lastFailureAt ? ' (last failure ' + formatDate(email.lastFailureAt) + ')' : '';
-      text.innerHTML = '<strong>' + email.failed + ' email' + (email.failed === 1 ? '' : 's') + ' could not be sent</strong>' + when +
+      var when = email.lastFailureAt ? ' (last failure ' + escapeHtml(formatDate(email.lastFailureAt)) + ')' : '';
+      text.innerHTML = '<strong>' + escapeHtml(email.failed) + ' email' + (email.failed === 1 ? '' : 's') + ' could not be sent</strong>' + when +
         '. Some complaints or order confirmations were never delivered — check your inbox and send them again. ' +
         'Server said: <code>' + escapeHtml(email.lastError || 'unknown error') + '</code>';
       box.style.display = '';
@@ -421,13 +525,14 @@
 
   // -------- Contacts --------
   function renderContacts(contacts) {
+    if (!identity) return;
     if (!contacts.length) {
       els.contactsBody.innerHTML = '<tr><td colspan="4" class="empty">No contact messages yet.</td></tr>';
       return;
     }
     var html = contacts.map(function (c) {
       return '<tr>' +
-        '<td><div>' + formatDate(c.receivedAt) + '</div>' +
+        '<td><div>' + escapeHtml(formatDate(c.receivedAt)) + '</div>' +
             '<div class="customer-meta">' + escapeHtml(c.contactId) + '</div></td>' +
         '<td>' +
           '<div class="customer-name">' + escapeHtml(c.name) + '</div>' +
@@ -435,69 +540,372 @@
           (c.phone ? '<div class="customer-meta">' + escapeHtml(c.phone) + '</div>' : '') +
         '</td>' +
         '<td><strong>' + escapeHtml(contactSubjectLabel(c.subject)) + '</strong>' +
-          '<a class="reply-link" target="_blank" rel="noopener" href="' +
-            replyMailto(c.email, 'Your Evora ' + contactSubjectLabel(c.subject) + ' (' + c.contactId + ')') + '">Reply by email</a></td>' +
+          (canEdit() ? '<a class="reply-link" target="_blank" rel="noopener" href="' +
+            escapeHtml(replyMailto(c.email, 'Your Evora ' + contactSubjectLabel(c.subject) + ' (' + c.contactId + ')')) + '">Reply by email</a>' : '') + '</td>' +
         '<td><div style="white-space:pre-wrap; max-width:520px;">' + escapeHtml(c.message) + '</div></td>' +
       '</tr>';
     }).join('');
     els.contactsBody.innerHTML = html;
   }
 
-  // -------- Load everything --------
-  function loadAll() {
-    return Promise.all([
-      api('/api/stats'),
-      api('/api/orders'),
-      api('/api/contacts')
-    ]).then(function (results) {
-      var stats = results[0];
-      var orders = results[1];
-      var contacts = results[2];
+  // -------- Staff --------
+  function renderStaff() {
+    if (!identity) return;
+    var owner = isOwner();
+    els.staffBody.innerHTML = allStaff.map(function (member, index) {
+      var immutable = member.role === 'owner' || member.email.toLowerCase() === 'evora.reply@gmail.com';
+      var role = immutable ? 'owner' : member.role;
+      return '<tr><td>' + escapeHtml(member.name) + '</td><td>' + escapeHtml(member.email) + '</td>' +
+        '<td><span class="role-pill role-' + escapeHtml(role) + '">' + escapeHtml(role) + '</span></td>' +
+        (owner ? '<td>' + (immutable ? 'Owner account' : '<div class="row-actions">' +
+          '<select aria-label="Role for ' + escapeHtml(member.name || member.email) + '">' +
+          ['admin', 'viewer'].map(function (value) {
+            return '<option value="' + value + '"' + (value === role ? ' selected' : '') + '>' +
+              (value === 'admin' ? 'Admin' : 'Viewer / staff') + '</option>';
+          }).join('') + '</select><button type="button" data-staff-save="' + index + '">Save role</button>' +
+          '<button type="button" data-staff-remove="' + index + '">Remove</button></div>') + '</td>' : '') + '</tr>';
+    }).join('') || '<tr><td colspan="' + (owner ? 4 : 3) + '" class="empty">No staff members.</td></tr>';
+  }
 
-      renderStats(stats);
-      allOrders = orders;
-      renderOrders();
-      renderContacts(contacts);
-      renderEmailStatus(stats.email);
+  async function changeStaff(method, email, body, controls, onSuccess) {
+    if (!isOwner() || mutationCount || loggingOut) return;
+    mutationCount++;
+    dashboardRequest++;
+    controls.forEach(function (control) { control.disabled = true; });
+    try {
+      await api('/api/admin/staff' + (email ? '/' + encodeURIComponent(email) : ''), {
+        method: method, body: body ? JSON.stringify(body) : undefined
+      });
+      if (onSuccess) onSuccess();
+      toast(method === 'DELETE' ? 'Staff member removed.' : 'Staff saved.', 'success');
+      await loadAll();
+    } catch (err) {
+      reportError(err);
+    } finally {
+      mutationCount--;
+      controls.forEach(function (control) { control.disabled = false; });
+    }
+  }
 
-      // Update badges
-      var newOrders = (stats.orders && stats.orders.byStatus && stats.orders.byStatus.received) || 0;
-      if (newOrders > 0) {
-        els.ordersBadge.textContent = newOrders;
-        els.ordersBadge.style.display = '';
-      } else {
-        els.ordersBadge.style.display = 'none';
-      }
-      var cTotal = (stats.contacts && stats.contacts.total) || contacts.length;
-      if (cTotal > 0) {
-        els.contactsBadge.textContent = cTotal;
-        els.contactsBadge.style.display = '';
-      } else {
-        els.contactsBadge.style.display = 'none';
-      }
+  els.staffForm.addEventListener('submit', function (event) {
+    event.preventDefault();
+    if (!els.staffForm.reportValidity()) return;
+    var name = els.staffName.value.trim();
+    if (!name) { toast('Enter a name.', 'error'); return; }
+    changeStaff('POST', '', {
+      name: name, email: els.staffEmail.value.trim().toLowerCase(), role: els.staffRole.value
+    }, els.staffForm.querySelectorAll('input, select, button'), function () { els.staffForm.reset(); });
+  });
 
-      els.status.textContent = '● Live';
-      els.status.style.color = '#34d399';
-    }).catch(function (err) {
-      els.status.textContent = '● Error';
-      els.status.style.color = '#fca5a5';
-      // If it's an auth error, showGate was already called by api()
-      if (err.message !== 'Unauthorized') toast(err.message, 'error');
+  els.staffBody.addEventListener('click', function (event) {
+    var button = event.target.closest('button[data-staff-save], button[data-staff-remove]');
+    if (!button || button.disabled || !isOwner() || mutationCount) return;
+    var removing = button.hasAttribute('data-staff-remove');
+    var member = allStaff[Number(button.getAttribute(removing ? 'data-staff-remove' : 'data-staff-save'))];
+    if (!member || member.role === 'owner' || member.email.toLowerCase() === 'evora.reply@gmail.com') return;
+    if (removing && !window.confirm('Remove ' + (member.name || member.email) + ' (' + member.email + ') from staff? Their dashboard access will be revoked.')) return;
+    var row = button.closest('tr');
+    changeStaff(removing ? 'DELETE' : 'PATCH', member.email,
+      removing ? null : { role: row.querySelector('select').value }, row.querySelectorAll('button, select'));
+  });
+
+  // -------- Products --------
+  var imageSlots = [
+    { input: els.productImageFile, url: els.productImage, preview: els.productImagePreview, ticket: 0 },
+    { input: els.productHoverFile, url: els.productHoverImage, preview: els.productHoverPreview, ticket: 0 }
+  ];
+
+  function safeImageUrl(value) {
+    if (typeof value !== 'string' || !value || /[\s\\\u0000-\u001f\u007f]/.test(value)) return '';
+    if (/^https:\/\/[^/?#@]+(?:[/?#]|$)/i.test(value)) {
+      try {
+        var url = new URL(value);
+        return url.protocol === 'https:' && url.hostname && !url.username && !url.password ? value : '';
+      } catch (_) { return ''; }
+    }
+    if (!/^(?:\/?assets\/products\/|\/api\/product-images\/)/.test(value) || /[^A-Za-z0-9/_.-]/.test(value)) return '';
+    return value.replace(/^\//, '').split('/').every(function (part) { return part && part !== '.' && part !== '..'; }) &&
+      /\.(?:jpe?g|png|webp|gif|avif)$/i.test(value) ? value : '';
+  }
+
+  function previewImage(slot, source) {
+    slot.preview.hidden = !source;
+    if (source) slot.preview.src = source;
+    else slot.preview.removeAttribute('src');
+  }
+
+  function validateImageFile(file) {
+    if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) throw new Error('Choose a JPEG, PNG or WebP image.');
+    if (!file.size || file.size > 2 * 1024 * 1024) throw new Error('Each image must be nonempty and no larger than 2 MiB.');
+  }
+
+  function readImageFile(file) {
+    return new Promise(function (resolve, reject) {
+      var reader = new FileReader();
+      reader.onload = function () { resolve(reader.result); };
+      reader.onerror = function () { reject(new Error('Could not read the image. Please select it again.')); };
+      reader.onabort = function () { reject(new Error('Image reading was cancelled.')); };
+      reader.readAsDataURL(file);
     });
   }
 
-  // -------- Wiring --------
+  function setProductBusy(busy) {
+    savingProduct = busy;
+    els.productForm.querySelectorAll('input, select, textarea, button').forEach(function (control) { control.disabled = busy; });
+    els.saveProduct.textContent = busy ? 'Saving…' : 'Save changes';
+  }
+
+  function closeProductEditor() {
+    editorVersion++;
+    editingProductId = null;
+    editingProductVersion = null;
+    if (els.productDialog.open) els.productDialog.close();
+    els.productForm.reset();
+    els.productCategory.textContent = '';
+    els.productError.textContent = '';
+    els.productIdText.textContent = '';
+    els.productEditorTitle.textContent = 'Edit product';
+    els.productImage.required = true;
+    imageSlots.forEach(function (slot) { slot.ticket++; previewImage(slot, ''); });
+    setProductBusy(false);
+  }
+
+  function renderProducts() {
+    if (!canEdit()) { els.productsBody.textContent = ''; return; }
+    var search = els.productSearch.value.trim().toLowerCase();
+    var rows = allProducts.filter(function (item) {
+      return [item.id, item.name, item.category, item.categoryLabel, item.description].join(' ').toLowerCase().includes(search);
+    });
+    els.productsBody.innerHTML = rows.map(function (item) {
+      var image = safeImageUrl(item.image);
+      var category = categories.find(function (entry) { return entry.id === item.category; });
+      return '<tr><td>' + (image ? '<img class="product-thumb" loading="lazy" src="' + escapeHtml(image) + '" alt="' + escapeHtml(item.name) + '">' : '—') + '</td>' +
+        '<td><div class="customer-name">' + escapeHtml(item.name) + '</div><div class="customer-meta">' + escapeHtml(item.id) + '</div></td>' +
+        '<td>' + escapeHtml(category ? category.label : item.category) + '</td><td class="total">' + formatMoney(item.price) + '</td>' +
+        '<td>' + (item.available ? 'Visible' : 'Hidden') + '</td><td><div class="row-actions"><button type="button" data-product="' +
+        escapeHtml(item.id) + '">Edit</button></div></td></tr>';
+    }).join('') || '<tr><td colspan="6" class="empty">No products match.</td></tr>';
+  }
+
+  function openProductEditor(id) {
+    if (!canEdit() || mutationCount || loggingOut) return;
+    var item = allProducts.find(function (product) { return product.id === id; });
+    if (!item) return;
+    closeProductEditor();
+    editingProductId = item.id;
+    editingProductVersion = item.version;
+    els.productEditorTitle.textContent = 'Edit ' + item.name;
+    els.productIdText.textContent = 'Product ID: ' + item.id;
+    els.productName.value = item.name || '';
+    els.productPrice.value = item.price;
+    els.productCategory.innerHTML = categories.map(function (category) {
+      return '<option value="' + escapeHtml(category.id) + '">' + escapeHtml(category.label) + '</option>';
+    }).join('');
+    els.productCategory.value = item.category;
+    els.productDescription.value = item.description || '';
+    els.productImage.value = item.image || '';
+    els.productHoverImage.value = item.hoverImage || '';
+    els.productAvailable.checked = !!item.available;
+    imageSlots.forEach(function (slot) { previewImage(slot, safeImageUrl(slot.url.value)); });
+    els.productDialog.showModal();
+    els.productName.focus();
+  }
+
+  imageSlots.forEach(function (slot) {
+    slot.preview.addEventListener('error', function () { slot.preview.hidden = true; });
+    slot.url.addEventListener('input', function () {
+      slot.ticket++;
+      slot.input.value = '';
+      els.productImage.required = !els.productImageFile.files.length;
+      previewImage(slot, safeImageUrl(slot.url.value.trim()));
+    });
+    slot.input.addEventListener('change', async function () {
+      var ticket = ++slot.ticket;
+      var editor = editorVersion;
+      var file = slot.input.files[0];
+      els.productError.textContent = '';
+      els.productImage.required = !els.productImageFile.files.length;
+      if (!file) { previewImage(slot, safeImageUrl(slot.url.value.trim())); return; }
+      try {
+        validateImageFile(file);
+        var data = await readImageFile(file);
+        if (editor === editorVersion && ticket === slot.ticket) previewImage(slot, data);
+      } catch (err) {
+        if (editor !== editorVersion || ticket !== slot.ticket) return;
+        slot.input.value = '';
+        els.productImage.required = !els.productImageFile.files.length;
+        previewImage(slot, safeImageUrl(slot.url.value.trim()));
+        els.productError.textContent = err.message;
+      }
+    });
+  });
+
+  els.productsBody.addEventListener('click', function (event) {
+    var button = event.target.closest('button[data-product]');
+    if (button) openProductEditor(button.getAttribute('data-product'));
+  });
+  els.cancelProduct.addEventListener('click', function () { if (!savingProduct) closeProductEditor(); });
+  els.productDialog.addEventListener('cancel', function (event) {
+    event.preventDefault();
+    if (!savingProduct) closeProductEditor();
+  });
+
+  els.productForm.addEventListener('submit', async function (event) {
+    event.preventDefault();
+    if (!canEdit() || savingProduct || mutationCount || !editingProductId || !els.productForm.reportValidity()) return;
+    var id = editingProductId;
+    var editor = editorVersion;
+    var version = sessionVersion;
+    var payload = {
+      version: editingProductVersion,
+      name: els.productName.value.trim(), price: Number(els.productPrice.value), category: els.productCategory.value,
+      description: els.productDescription.value, image: els.productImage.value.trim(),
+      hoverImage: els.productHoverImage.value.trim(), available: els.productAvailable.checked
+    };
+    els.productError.textContent = '';
+    try {
+      if (!payload.name) throw new Error('Enter a product name.');
+      if (!Number.isSafeInteger(payload.price) || payload.price < 1 || payload.price > 1000000) throw new Error('Price must be a whole number between 1 and 1000000.');
+      imageSlots.forEach(function (slot, index) {
+        var file = slot.input.files[0];
+        if (file) validateImageFile(file);
+        else if ((index === 0 || slot.url.value.trim()) && !safeImageUrl(slot.url.value.trim())) {
+          throw new Error('Use a valid product image path or HTTPS URL.');
+        }
+      });
+    } catch (err) { els.productError.textContent = err.message; return; }
+    function ensureCurrentEditor() {
+      if (editor !== editorVersion || version !== sessionVersion || !canEdit() || loggingOut) throw staleError();
+    }
+    setProductBusy(true);
+    mutationCount++;
+    productRequest++;
+    try {
+      for (var index = 0; index < imageSlots.length; index++) {
+        var slot = imageSlots[index];
+        var file = slot.input.files[0];
+        if (!file) continue;
+        var data = await readImageFile(file);
+        ensureCurrentEditor();
+        var uploaded = await api('/api/admin/product-images', {
+          method: 'POST', body: JSON.stringify({ data: data.slice(data.indexOf(',') + 1), contentType: file.type })
+        });
+        ensureCurrentEditor();
+        if (!uploaded || !safeImageUrl(uploaded.url)) throw new Error('The upload returned an invalid image URL. Please try again.');
+        slot.url.value = uploaded.url;
+        slot.input.value = '';
+        slot.ticket++;
+        previewImage(slot, uploaded.url);
+        els.productImage.required = !els.productImageFile.files.length;
+      }
+      ensureCurrentEditor();
+      payload.image = els.productImage.value.trim();
+      payload.hoverImage = els.productHoverImage.value.trim();
+      var updated = await api('/api/admin/products/' + encodeURIComponent(id), { method: 'PATCH', body: JSON.stringify(payload) });
+      ensureCurrentEditor();
+      if (!updated || updated.id !== id) throw new Error('The server returned an unexpected product. Refresh before trying again.');
+      productRequest++;
+      allProducts = allProducts.map(function (item) { return item.id === id ? updated : item; });
+      renderProducts();
+      closeProductEditor();
+      toast('Product saved. Changes appear on the next storefront reload.', 'success');
+    } catch (err) {
+      if (editor === editorVersion && version === sessionVersion && !err.stale && err.status !== 401) els.productError.textContent = err.message;
+      if (err.status === 403) reportError(err);
+    } finally {
+      mutationCount--;
+      if (editor === editorVersion) setProductBusy(false);
+    }
+  });
+
+  // -------- Load everything --------
+  function isEditing() {
+    var active = document.activeElement;
+    return els.productDialog.open || !!(active && active.closest && active.closest('input, select, textarea, [contenteditable="true"]'));
+  }
+
+  async function loadProducts(checkIdentity, automatic) {
+    if (!identity || loggingOut) return;
+    loadingCount++;
+    var ticket;
+    try {
+      if (checkIdentity) await refreshIdentity();
+      if (!canEdit()) return;
+      ticket = ++productRequest;
+      var version = sessionVersion;
+      var result = await api('/api/admin/products');
+      if (version !== sessionVersion || ticket !== productRequest || !canEdit() || (automatic && isEditing())) return;
+      if (!result || !Array.isArray(result.items) || !Array.isArray(result.categories)) throw new Error('Invalid product list returned by the server.');
+      allProducts = result.items;
+      categories = result.categories;
+      renderProducts();
+    } catch (err) {
+      if (ticket === undefined || ticket === productRequest) reportError(err);
+    } finally { loadingCount--; }
+  }
+
+  async function loadAll(automatic) {
+    if (!identity || loggingOut) return;
+    loadingCount++;
+    var ticket;
+    try {
+      await refreshIdentity();
+      ticket = ++dashboardRequest;
+      var version = sessionVersion;
+      var results = await Promise.all([api('/api/stats'), api('/api/orders'), api('/api/contacts'), api('/api/admin/staff')]);
+      if (version !== sessionVersion || ticket !== dashboardRequest || !identity || (automatic && isEditing())) return;
+      lastStats = results[0];
+      allOrders = results[1];
+      allContacts = results[2];
+      allStaff = results[3];
+      renderStats(lastStats);
+      renderOrders();
+      renderContacts(allContacts);
+      renderStaff();
+      renderEmailStatus(lastStats.email);
+      var newOrders = (lastStats.orders && lastStats.orders.byStatus && lastStats.orders.byStatus.received) || 0;
+      els.ordersBadge.textContent = newOrders;
+      els.ordersBadge.style.display = newOrders > 0 ? '' : 'none';
+      var cTotal = (lastStats.contacts && lastStats.contacts.total) || allContacts.length;
+      els.contactsBadge.textContent = cTotal;
+      els.contactsBadge.style.display = cTotal > 0 ? '' : 'none';
+      els.status.textContent = '● Live';
+      els.status.style.color = '#34d399';
+      if (activeTab === 'products' && canEdit() && !els.productDialog.open) await loadProducts(false, automatic);
+    } catch (err) {
+      if (err.stale || err.status === 401 || (ticket !== undefined && ticket !== dashboardRequest)) return;
+      els.status.textContent = '● Error';
+      els.status.style.color = '#fca5a5';
+      reportError(err);
+    } finally { loadingCount--; }
+  }
+
+  function switchTab(which) {
+    if (!['orders', 'contacts', 'staff', 'products'].includes(which) || (which === 'products' && !canEdit())) return;
+    activeTab = which;
+    document.querySelectorAll('.tab').forEach(function (tab) {
+      var selected = tab.getAttribute('data-tab') === which;
+      tab.classList.toggle('active', selected);
+      tab.setAttribute('aria-pressed', String(selected));
+    });
+    ['orders', 'contacts', 'staff', 'products'].forEach(function (name) {
+      document.getElementById('panel-' + name).style.display = which === name ? '' : 'none';
+    });
+  }
+
   els.statusFilter.addEventListener('change', renderOrders);
   els.searchInput.addEventListener('input', renderOrders);
-  els.refreshBtn.addEventListener('click', loadAll);
-
-  // Tabs
-  Array.prototype.forEach.call(document.querySelectorAll('.tab'), function (tab) {
+  els.productSearch.addEventListener('input', renderProducts);
+  els.refreshBtn.addEventListener('click', function () { if (!mutationCount) loadAll(); });
+  els.staffRefresh.addEventListener('click', function () { if (!mutationCount) loadAll(); });
+  els.productsRefresh.addEventListener('click', function () { if (!mutationCount) loadProducts(true); });
+  document.querySelectorAll('.tab').forEach(function (tab) {
     tab.addEventListener('click', function () {
+      if (!identity || loggingOut || mutationCount) return;
       var which = tab.getAttribute('data-tab');
-      document.querySelectorAll('.tab').forEach(function (t) { t.classList.toggle('active', t === tab); });
-      document.getElementById('panel-orders').style.display = which === 'orders' ? '' : 'none';
-      document.getElementById('panel-contacts').style.display = which === 'contacts' ? '' : 'none';
+      switchTab(which);
+      if (which === 'products') loadProducts(true);
+      else if (which === 'staff') loadAll();
     });
   });
 
@@ -510,27 +918,22 @@
   tickClock();
   setInterval(tickClock, 1000);
 
-  // Auto-refresh every 15 seconds (orders/contacts only — stats are pulled in loadAll)
   setInterval(function () {
-    if (els.dashboard.style.display === 'none') return;
-    if (!getKey()) return;
-    // Don't clobber the table while the admin is working in it: re-rendering
-    // would close an open status dropdown and discard a half-typed search.
-    var active = document.activeElement;
-    if (active && active.closest &&
-        (active.closest('#panel-orders') || active.closest('.orders-toolbar'))) return;
-    Promise.all([api('/api/orders'), api('/api/contacts')]).then(function (results) {
-      allOrders = results[0];
-      renderOrders();
-      renderContacts(results[1]);
-    }).catch(function () { /* api() will surface auth errors */ });
+    if (!identity || loggingOut || loadingCount || mutationCount || isEditing()) return;
+    loadAll(true);
   }, 15000);
 
-  // -------- Boot --------
-  if (getSession()) {
-    pendingEmail = getEmail();
-    enterDashboard();
-  } else {
-    showGate();
-  }
+  ['sessionStorage', 'localStorage'].forEach(function (name) {
+    try {
+      window[name].removeItem('evoraAdminSession');
+      window[name].removeItem('kbAdminKey');
+    } catch (_) { /* Storage may be unavailable in private browsing. */ }
+  });
+  showGate();
+  setAuthBusy(true);
+  request('/api/admin/me').then(function (member) {
+    enterDashboard(member);
+  }).catch(function (err) {
+    showGate(err.status === 401 ? '' : err.message);
+  }).finally(function () { setAuthBusy(false); });
 })();

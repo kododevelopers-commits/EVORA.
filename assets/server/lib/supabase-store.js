@@ -9,6 +9,7 @@
 //              payment_*, subtotal/gst/delivery/total, status_updated_at
 //   contacts — id bigint identity PK, contact_id unique, received_at, name,
 //              email, phone, subject, message
+//   staff    — email text PK, name, role (owner|admin|viewer), created_at
 //
 // The Express app keeps seeing the same order/contact objects as the JSON and
 // Redis backends; toRow()/fromRow() translate between those shapes and the
@@ -29,6 +30,14 @@ const COLLECTIONS = {
     key: function (c) { return c && c.contactId ? String(c.contactId) : null; },
     toRow: contactToRow,
     fromRow: contactFromRow
+  },
+  staff: {
+    table: 'staff',
+    conflict: 'email',
+    order: 'created_at.asc',
+    key: function (s) { return s && s.email ? String(s.email).toLowerCase() : null; },
+    toRow: staffToRow,
+    fromRow: staffFromRow
   }
 };
 
@@ -159,12 +168,31 @@ function contactFromRow(r) {
   };
 }
 
+function staffToRow(s) {
+  return {
+    email: String(s.email).toLowerCase(),
+    name: s.name || '',
+    role: s.role || 'viewer',
+    created_at: s.createdAt || new Date().toISOString()
+  };
+}
+
+function staffFromRow(r) {
+  return {
+    email: r.email,
+    name: r.name || '',
+    role: r.role || 'viewer',
+    createdAt: r.created_at
+  };
+}
+
 // ---------------------------------------------------------------------------
 // Reads
 // ---------------------------------------------------------------------------
 async function read(name) {
   const c = collection(name);
-  const res = await request('/' + c.table + '?select=*&order=received_at.asc');
+  const order = c.order || 'received_at.asc';
+  const res = await request('/' + c.table + '?select=*&order=' + order);
   const rows = res.text ? JSON.parse(res.text) : [];
   return rows.map(c.fromRow);
 }
@@ -263,6 +291,7 @@ async function update(name, mutator) {
 
 module.exports = {
   isConfigured: isConfigured,
+  request: request,
   read: read,
   append: append,
   save: save,

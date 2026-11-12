@@ -13,7 +13,7 @@ const MAX_ADDRESS = 500;
 const MAX_MESSAGE = 2000;
 const MAX_QTY = 50;
 const MIN_PRICE = 0;
-const MAX_PRICE = 100000;
+const MAX_PRICE = 1000000;
 
 function isString(v) {
   return typeof v === 'string';

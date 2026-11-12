@@ -1,20 +1,16 @@
 // ============================================================================
-// catalog.js — the single source of truth for the product catalogue.
+// catalog.js — bundled seed catalogue, not live storefront data.
 // ----------------------------------------------------------------------------
-// Everything that needs product data reads from this one file:
-//
-//   * the browser  — loaded via <script src="catalog.js">, exposes
-//                    window.EVORA_CATALOG (used by script.js and product.html)
-//   * the server   — assets/server/server.js does require('../../catalog.js')
-//                    for /api/menu and for verifying order prices
-//
-// To add or change a product, edit it here and nowhere else. Prices used by
-// the checkout are recomputed on the server from this file, so a tampered
-// browser can no longer change what an order costs.
+// The browser loads this shape for compatibility, but api-client.js replaces
+// window.EVORA_CATALOG with the fresh /api/menu response. Storefront consumers
+// must await EVORA_API.catalogReady (product detail also awaits cartReady).
+// Product edits belong in the database via the admin, not in this seed file.
+// The server validates submitted IDs, quantities and displayed prices against
+// current products and returns authoritative order totals.
 //
 // Shape of each item:
 //   id            unique slug, used in product.html?slug=... and the cart
-//   name          display name (also the cart key today)
+//   name          display name (cart keys use the stable id)
 //   category      one of the ids in `categories` below
 //   categoryLabel human-readable category name
 //   price         integer rupees

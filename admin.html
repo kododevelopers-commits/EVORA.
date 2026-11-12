@@ -432,6 +432,40 @@
     .toast.show { opacity: 1; transform: translateY(0); }
     .toast.error { background: #b91c1c; }
     .toast.success { background: #047857; }
+    [hidden] { display: none !important; }
+    .tabs { overflow-x: auto; }
+    .tab { white-space: nowrap; }
+    .table-wrap { overflow-x: auto; }
+    .section-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 16px; }
+    .section-head h2 { margin: 0; font-size: 20px; }
+    .section-head p { margin: 4px 0 0; color: #6b7280; }
+    .staff-form { background: #fff; padding: 18px; border: 1px solid #ececec; border-radius: 16px; margin-bottom: 20px; }
+    .staff-form label { display: grid; gap: 4px; font-size: 12px; }
+    .role-pill { background: #f1f1f1; border-radius: 999px; padding: 4px 10px; font-size: 12px; text-transform: capitalize; display: inline-block; }
+    .role-owner { background: #1a1a1a; color: #fff; }
+    .role-admin { background: #e9eefc; color: #304679; }
+    .product-thumb { width: 52px; height: 64px; border-radius: 8px; object-fit: cover; background: #f5f5f5; }
+    .editor { border: 1px solid #e8e8e8; border-radius: 20px; padding: 24px; width: min(680px, calc(100% - 24px)); max-height: 90vh; overflow-y: auto; }
+    .editor::backdrop { background: rgba(0,0,0,.4); }
+    .editor h2 { margin: 0; }
+    .editor-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin: 20px 0; }
+    .editor-grid label { display: grid; gap: 5px; font-size: 13px; min-width: 0; }
+    .editor-grid .full { grid-column: 1 / -1; }
+    .editor input, .editor select, .editor textarea { width: 100%; border: 1px solid #dcdcdc; border-radius: 8px; padding: 10px; font: inherit; min-width: 0; }
+    .editor textarea { min-height: 100px; resize: vertical; }
+    .editor .checkbox-label { display: flex; align-items: center; gap: 8px; }
+    .editor input[type="checkbox"] { width: auto; }
+    .editor-preview { width: 100%; max-height: 150px; object-fit: contain; border-radius: 8px; background: #f5f5f5; }
+    .form-error { color: #b91c1c; font-size: 13px; }
+    .muted { color: #6b7280; font-size: 12px; }
+    button:disabled { opacity: .6; cursor: not-allowed; }
+    @media (max-width: 640px) {
+      .editor-grid { grid-template-columns: 1fr; }
+      .topbar { padding: 12px; }
+      .topbar-right { gap: 8px; }
+      #now { display: none; }
+      .section-head { align-items: flex-start; }
+    }
   </style>
 </head>
 <body>
@@ -477,11 +511,14 @@
       <button type="submit">Sign in</button>
       <p class="err" id="loginErr" style="display:none;"></p>
     </form>
-    <p class="help">
-      Only the owner and admin emails can open this dashboard. The password is
-      the server's admin API key. "Remember me" keeps you signed in on this
-      device; without it you are signed out when the tab closes.
-    </p>
+    <form id="verifyForm" style="display:none;">
+      <p>Enter the sign-in code sent to <strong id="verifyEmail"></strong>. Check spam too.</p>
+      <input id="loginCode" aria-label="Email sign-in code" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6,10}" maxlength="10" required>
+      <button type="submit">Verify and sign in</button>
+      <button type="button" class="link-btn" id="restartLogin">Use a different email or request a new code</button>
+      <p class="err" id="verifyErr" style="display:none;" role="alert"></p>
+    </form>
+    <p class="help">Staff sign in with the admin key, then verify their own email. Remember me keeps your session on this device; otherwise the session ends when you close the browser.</p>
   </div>
 
   <!-- DASHBOARD — hidden until signed in -->
@@ -498,6 +535,8 @@
     <div class="tabs">
       <button class="tab active" data-tab="orders">Orders <span class="badge" id="ordersBadge" style="display:none;">0</span></button>
       <button class="tab" data-tab="contacts">Contact messages <span class="badge" id="contactsBadge" style="display:none;">0</span></button>
+      <button class="tab" data-tab="staff">Staff</button>
+      <button class="tab" data-tab="products" id="productsTab" hidden>Products</button>
     </div>
 
     <!-- ORDERS PANEL -->
@@ -524,9 +563,9 @@
               <th>Order</th>
               <th>Customer</th>
               <th>Items</th>
-              <th>Total</th>
+              <th id="orderTotalHeading">Total</th>
               <th>Status</th>
-              <th>Actions</th>
+              <th id="orderActionsHeading">Actions</th>
             </tr>
           </thead>
           <tbody id="ordersBody">
@@ -555,9 +594,44 @@
       </div>
     </section>
 
+    <section id="panel-staff" style="display:none;">
+      <div class="section-head"><div><h2>Staff</h2><p>Everyone who has access to your shop dashboard.</p></div><div class="toolbar"><button id="staffRefresh" type="button">Refresh</button></div></div>
+      <form id="staffForm" class="staff-form toolbar" hidden>
+        <label>Name<input id="staffName" maxlength="100" placeholder="Display name" required></label>
+        <label>Email<input type="email" id="staffEmail" maxlength="254" placeholder="Email address" required></label>
+        <label>Role<select id="staffRole"><option value="viewer">Viewer / staff</option><option value="admin">Admin</option></select></label>
+        <button type="submit">Add member</button>
+      </form>
+      <p class="muted">Owners manage staff and products. Admins edit products and order status. Viewers have read-only access.</p>
+      <div class="table-wrap"><table><thead><tr><th>Name</th><th>Email</th><th>Role</th><th id="staffActionsHeading" hidden>Manage</th></tr></thead><tbody id="staffBody"></tbody></table></div>
+    </section>
+    <section id="panel-products" style="display:none;">
+      <div class="section-head"><div><h2>Products</h2><p>Saved changes appear on the storefront on its next load.</p></div><div class="toolbar"><button id="productsRefresh" type="button">Refresh</button></div></div>
+      <div class="toolbar"><input type="search" id="productSearch" aria-label="Search products" placeholder="Search products…"></div>
+      <div class="table-wrap"><table><thead><tr><th>Image</th><th>Product</th><th>Category</th><th>Price</th><th>Visibility</th><th>Edit</th></tr></thead><tbody id="productsBody"></tbody></table></div>
+    </section>
   </div>
 
-  <div class="toast" id="toast"></div>
+  <dialog class="editor" id="productDialog" aria-labelledby="productEditorTitle">
+    <form id="productForm">
+      <h2 id="productEditorTitle">Edit product</h2><p class="muted" id="productIdText"></p>
+      <div class="editor-grid">
+        <label class="full">Name<input id="productName" maxlength="160" required></label>
+        <label>Price (Rs.)<input id="productPrice" type="number" min="1" max="1000000" step="1" required></label>
+        <label>Category<select id="productCategory" required></select></label>
+        <label class="full">Description<textarea id="productDescription" maxlength="5000"></textarea></label>
+        <label>Main image path or HTTPS URL<input id="productImage" required><img id="productImagePreview" class="editor-preview" alt="Main product preview"></label>
+        <label>Hover image path or HTTPS URL<input id="productHoverImage"><img id="productHoverPreview" class="editor-preview" alt="Hover product preview"></label>
+        <label>Upload main photo<input id="productImageFile" type="file" accept="image/jpeg,image/png,image/webp"></label>
+        <label>Upload hover photo<input id="productHoverFile" type="file" accept="image/jpeg,image/png,image/webp"></label>
+        <p class="muted full">JPEG, PNG or WebP, up to 2 MB per image. Uploads replace the URL when you save.</p>
+        <label class="checkbox-label full"><input type="checkbox" id="productAvailable">Visible and available to order</label>
+      </div>
+      <p id="productError" class="form-error" role="alert"></p>
+      <div class="toolbar"><button id="saveProduct" type="submit">Save changes</button><button type="button" id="cancelProduct">Cancel</button></div>
+    </form>
+  </dialog>
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
   <script src="api-client.js?v=30"></script>
   <script src="admin.js"></script>

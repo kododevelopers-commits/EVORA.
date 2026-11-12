@@ -21,6 +21,7 @@
   var editingProductId = null;
   var editingProductVersion = null;
   var savingProduct = false;
+  var editorMode = 'edit';
 
   function canEdit() { return !!identity && ['owner', 'admin'].includes(identity.role); }
   function isOwner() { return !!identity && identity.role === 'owner'; }
@@ -62,8 +63,8 @@
   ['verifyForm', 'loginCode', 'verifyEmail', 'verifyErr', 'restartLogin',
     'orderTotalHeading', 'orderActionsHeading', 'emailAlert', 'emailAlertText',
     'staffForm', 'staffName', 'staffEmail', 'staffRole', 'staffBody', 'staffActionsHeading', 'staffRefresh',
-    'productsTab', 'productsBody', 'productSearch', 'productsRefresh', 'productDialog', 'productForm',
-    'productName', 'productPrice', 'productCategory', 'productDescription', 'productImage', 'productHoverImage',
+    'productsTab', 'productsBody', 'productSearch', 'productsRefresh', 'addProduct', 'productDialog', 'productForm',
+    'productName', 'productPrice', 'productOriginalPrice', 'productCategory', 'productDescription', 'productImage', 'productHoverImage',
     'productImageFile', 'productHoverFile', 'productAvailable', 'productImagePreview', 'productHoverPreview',
     'productEditorTitle', 'productIdText', 'productError', 'saveProduct', 'cancelProduct'
   ].forEach(function (id) { els[id] = document.getElementById(id); });
@@ -652,11 +653,12 @@
   function setProductBusy(busy) {
     savingProduct = busy;
     els.productForm.querySelectorAll('input, select, textarea, button').forEach(function (control) { control.disabled = busy; });
-    els.saveProduct.textContent = busy ? 'Saving…' : 'Save changes';
+    els.saveProduct.textContent = busy ? (editorMode === 'add' ? 'Adding…' : 'Saving…') : (editorMode === 'add' ? 'Add product' : 'Save changes');
   }
 
   function closeProductEditor() {
     editorVersion++;
+    editorMode = 'edit';
     editingProductId = null;
     editingProductVersion = null;
     if (els.productDialog.open) els.productDialog.close();
@@ -681,7 +683,8 @@
       var category = categories.find(function (entry) { return entry.id === item.category; });
       return '<tr><td>' + (image ? '<img class="product-thumb" loading="lazy" src="' + escapeHtml(image) + '" alt="' + escapeHtml(item.name) + '">' : '—') + '</td>' +
         '<td><div class="customer-name">' + escapeHtml(item.name) + '</div><div class="customer-meta">' + escapeHtml(item.id) + '</div></td>' +
-        '<td>' + escapeHtml(category ? category.label : item.category) + '</td><td class="total">' + formatMoney(item.price) + '</td>' +
+        '<td>' + escapeHtml(category ? category.label : item.category) + '</td><td class="total">' + formatMoney(item.price) +
+        (Number.isSafeInteger(item.originalPrice) && item.originalPrice > item.price ? '<span class="price-original">' + formatMoney(item.originalPrice) + '</span>' : '') + '</td>' +
         '<td>' + (item.available ? 'Visible' : 'Hidden') + '</td><td><div class="row-actions"><button type="button" data-product="' +
         escapeHtml(item.id) + '">Edit</button></div></td></tr>';
     }).join('') || '<tr><td colspan="6" class="empty">No products match.</td></tr>';
@@ -698,6 +701,7 @@
     els.productIdText.textContent = 'Product ID: ' + item.id;
     els.productName.value = item.name || '';
     els.productPrice.value = item.price;
+    els.productOriginalPrice.value = Number.isSafeInteger(item.originalPrice) ? item.originalPrice : '';
     els.productCategory.innerHTML = categories.map(function (category) {
       return '<option value="' + escapeHtml(category.id) + '">' + escapeHtml(category.label) + '</option>';
     }).join('');
@@ -707,6 +711,21 @@
     els.productHoverImage.value = item.hoverImage || '';
     els.productAvailable.checked = !!item.available;
     imageSlots.forEach(function (slot) { previewImage(slot, safeImageUrl(slot.url.value)); });
+    els.productDialog.showModal();
+    els.productName.focus();
+  }
+
+  function openAddProduct() {
+    if (!canEdit() || mutationCount || loggingOut) return;
+    closeProductEditor();
+    editorMode = 'add';
+    els.productEditorTitle.textContent = 'Add product';
+    els.productIdText.textContent = 'The product link is generated from the name automatically. It appears on the storefront as soon as you save.';
+    els.productCategory.innerHTML = categories.map(function (category) {
+      return '<option value="' + escapeHtml(category.id) + '">' + escapeHtml(category.label) + '</option>';
+    }).join('');
+    els.productAvailable.checked = true;
+    setProductBusy(false);
     els.productDialog.showModal();
     els.productName.focus();
   }
@@ -744,6 +763,7 @@
     var button = event.target.closest('button[data-product]');
     if (button) openProductEditor(button.getAttribute('data-product'));
   });
+  els.addProduct.addEventListener('click', openAddProduct);
   els.cancelProduct.addEventListener('click', function () { if (!savingProduct) closeProductEditor(); });
   els.productDialog.addEventListener('cancel', function (event) {
     event.preventDefault();
@@ -752,20 +772,24 @@
 
   els.productForm.addEventListener('submit', async function (event) {
     event.preventDefault();
-    if (!canEdit() || savingProduct || mutationCount || !editingProductId || !els.productForm.reportValidity()) return;
+    if (!canEdit() || savingProduct || mutationCount || (editorMode !== 'add' && !editingProductId) || !els.productForm.reportValidity()) return;
+    var adding = editorMode === 'add';
     var id = editingProductId;
     var editor = editorVersion;
     var version = sessionVersion;
+    var originalRaw = els.productOriginalPrice.value.trim();
     var payload = {
-      version: editingProductVersion,
-      name: els.productName.value.trim(), price: Number(els.productPrice.value), category: els.productCategory.value,
+      name: els.productName.value.trim(), price: Number(els.productPrice.value),
+      originalPrice: originalRaw === '' ? null : Number(originalRaw), category: els.productCategory.value,
       description: els.productDescription.value, image: els.productImage.value.trim(),
       hoverImage: els.productHoverImage.value.trim(), available: els.productAvailable.checked
     };
+    if (!adding) payload.version = editingProductVersion;
     els.productError.textContent = '';
     try {
       if (!payload.name) throw new Error('Enter a product name.');
-      if (!Number.isSafeInteger(payload.price) || payload.price < 1 || payload.price > 1000000) throw new Error('Price must be a whole number between 1 and 1000000.');
+      if (!Number.isSafeInteger(payload.price) || payload.price < 1 || payload.price > 1000000) throw new Error('Selling price must be a whole number between 1 and 1000000.');
+      if (payload.originalPrice !== null && (!Number.isSafeInteger(payload.originalPrice) || payload.originalPrice < payload.price || payload.originalPrice > 1000000)) throw new Error('Original price must be a whole number at least the selling price (max 1000000).');
       imageSlots.forEach(function (slot, index) {
         var file = slot.input.files[0];
         if (file) validateImageFile(file);
@@ -801,14 +825,21 @@
       ensureCurrentEditor();
       payload.image = els.productImage.value.trim();
       payload.hoverImage = els.productHoverImage.value.trim();
-      var updated = await api('/api/admin/products/' + encodeURIComponent(id), { method: 'PATCH', body: JSON.stringify(payload) });
+      var saved = adding
+        ? await api('/api/admin/products', { method: 'POST', body: JSON.stringify(payload) })
+        : await api('/api/admin/products/' + encodeURIComponent(id), { method: 'PATCH', body: JSON.stringify(payload) });
       ensureCurrentEditor();
-      if (!updated || updated.id !== id) throw new Error('The server returned an unexpected product. Refresh before trying again.');
+      if (!saved || !saved.id || (!adding && saved.id !== id)) throw new Error('The server returned an unexpected product. Refresh before trying again.');
       productRequest++;
-      allProducts = allProducts.map(function (item) { return item.id === id ? updated : item; });
+      if (adding) {
+        allProducts.push(saved);
+        els.productSearch.value = '';
+      } else {
+        allProducts = allProducts.map(function (item) { return item.id === id ? saved : item; });
+      }
       renderProducts();
       closeProductEditor();
-      toast('Product saved. Changes appear on the next storefront reload.', 'success');
+      toast(adding ? 'Product added. It appears on the storefront on its next reload.' : 'Product saved. Changes appear on the next storefront reload.', 'success');
     } catch (err) {
       if (editor === editorVersion && version === sessionVersion && !err.stale && err.status !== 401) els.productError.textContent = err.message;
       if (err.status === 403) reportError(err);

@@ -2,8 +2,8 @@ const crypto = require('node:crypto');
 const supabase = require('./supabase-store');
 const catalog = require('../../../catalog.js');
 
-const EDITABLE = ['name', 'price', 'description', 'category', 'image', 'hoverImage', 'available'];
-const REQUIRED = EDITABLE.filter(function (field) { return field !== 'hoverImage'; });
+const EDITABLE = ['name', 'price', 'originalPrice', 'description', 'category', 'image', 'hoverImage', 'available'];
+const REQUIRED = EDITABLE.filter(function (field) { return field !== 'hoverImage' && field !== 'originalPrice'; });
 const MAX_IMAGE_BYTES = 2 * 1024 * 1024;
 const MAX_BASE64_LENGTH = 4 * Math.ceil(MAX_IMAGE_BYTES / 3);
 const IMAGE_TYPES = new Map([
@@ -61,6 +61,15 @@ function validateFields(input, fields) {
         }
         output.price = value;
         break;
+      case 'originalPrice':
+        if (value === null || value === '') {
+          output.originalPrice = null;
+        } else if (!Number.isSafeInteger(value) || value <= 0 || value > 1000000) {
+          throw fail(400, 'Original price must be a positive integer no greater than 1000000.');
+        } else {
+          output.originalPrice = value;
+        }
+        break;
       case 'description':
         if (typeof value !== 'string' || value.length > 5000) {
           throw fail(400, 'Description must be a string of at most 5000 characters.');
@@ -92,6 +101,22 @@ function validateFields(input, fields) {
     }
   });
   return output;
+}
+
+function checkOriginalPrice(data) {
+  if (data.originalPrice === null || data.originalPrice === undefined || data.originalPrice === '') {
+    delete data.originalPrice;
+    return;
+  }
+  if (!Number.isSafeInteger(data.originalPrice) || data.originalPrice > 1000000 || data.originalPrice < data.price) {
+    throw fail(400, 'Original price must be a whole number at least the selling price.');
+  }
+}
+
+function slugify(name) {
+  const base = name.toLowerCase().normalize('NFKD').replace(/[̀-ͯ]/g, '')
+    .replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 60).replace(/-+$/g, '');
+  return base || 'product';
 }
 
 async function requestRows(path, options) {
@@ -146,6 +171,7 @@ async function update(id, input) {
   const fields = REQUIRED.concat(Object.hasOwn(data, 'hoverImage') ? ['hoverImage'] : []);
   Object.assign(data, validateFields(data, fields));
   if (!data.hoverImage) delete data.hoverImage;
+  checkOriginalPrice(data);
   data.categoryLabel = catalog.categories.find(function (category) {
     return category.id === data.category;
   }).label;
@@ -158,6 +184,54 @@ async function update(id, input) {
   if (!updated.length) throw fail(409, 'This product changed while saving. Refresh products and try again.');
   if (updated.length !== 1 || updated[0].id !== id) throw fail(502, 'Product service is unavailable.');
   return toItem(updated[0]);
+}
+
+async function create(input) {
+  if (!isObject(input) || !Object.keys(input).length) throw fail(400, 'Provide the product details.');
+  const data = validateFields(input, Object.keys(input));
+  REQUIRED.forEach(function (field) {
+    if (!Object.hasOwn(data, field)) throw fail(400, 'Missing required field: ' + field + '.');
+  });
+  if (!data.hoverImage) delete data.hoverImage;
+  checkOriginalPrice(data);
+  data.categoryLabel = catalog.categories.find(function (category) {
+    return category.id === data.category;
+  }).label;
+
+  const base = slugify(data.name);
+  for (let attempt = 0; attempt < 3; attempt++) {
+    const rows = await requestRows('/products?select=*');
+    const taken = new Set(rows.map(function (row) { return row.id; }));
+    let id = base;
+    for (let n = 2; taken.has(id); n++) id = base + '-' + n;
+    const position = rows.reduce(function (max, row) {
+      return Math.max(max, Number.isSafeInteger(row.position) ? row.position : 0);
+    }, 0) + 1;
+    data.id = id;
+    let response;
+    try {
+      response = await supabase.request('/products', {
+        method: 'POST',
+        prefer: 'return=representation',
+        body: { id: id, data: data, position: position, version: 1 }
+      });
+    } catch (err) {
+      // A simultaneous create with the same name can claim the slug first.
+      if (err.message.startsWith('Supabase HTTP 409') && attempt < 2) continue;
+      throw fail(502, 'Product service is unavailable.');
+    }
+    let created;
+    try {
+      created = JSON.parse(response.text);
+    } catch (_) {
+      throw fail(502, 'Product service is unavailable.');
+    }
+    if (!Array.isArray(created) || created.length !== 1 || created[0].id !== id || !isObject(created[0].data)) {
+      throw fail(502, 'Product service is unavailable.');
+    }
+    return toItem(created[0]);
+  }
+  throw fail(502, 'Product service is unavailable.');
 }
 
 function decodeImage(input) {
@@ -228,4 +302,4 @@ async function upload(input) {
   }
 }
 
-module.exports = { list: list, update: update, upload: upload };
+module.exports = { list: list, create: create, update: update, upload: upload };

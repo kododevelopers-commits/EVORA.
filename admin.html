@@ -458,6 +458,7 @@
     .editor-preview { width: 100%; max-height: 150px; object-fit: contain; border-radius: 8px; background: #f5f5f5; }
     .form-error { color: #b91c1c; font-size: 13px; }
     .muted { color: #6b7280; font-size: 12px; }
+    .price-original { text-decoration: line-through; color: #9ca3af; font-weight: 400; font-size: 12px; margin-left: 6px; }
     button:disabled { opacity: .6; cursor: not-allowed; }
     @media (max-width: 640px) {
       .editor-grid { grid-template-columns: 1fr; }
@@ -606,7 +607,7 @@
       <div class="table-wrap"><table><thead><tr><th>Name</th><th>Email</th><th>Role</th><th id="staffActionsHeading" hidden>Manage</th></tr></thead><tbody id="staffBody"></tbody></table></div>
     </section>
     <section id="panel-products" style="display:none;">
-      <div class="section-head"><div><h2>Products</h2><p>Saved changes appear on the storefront on its next load.</p></div><div class="toolbar"><button id="productsRefresh" type="button">Refresh</button></div></div>
+      <div class="section-head"><div><h2>Products</h2><p>Saved changes appear on the storefront on its next load.</p></div><div class="toolbar"><button id="addProduct" type="button">+ Add product</button><button id="productsRefresh" type="button">Refresh</button></div></div>
       <div class="toolbar"><input type="search" id="productSearch" aria-label="Search products" placeholder="Search products…"></div>
       <div class="table-wrap"><table><thead><tr><th>Image</th><th>Product</th><th>Category</th><th>Price</th><th>Visibility</th><th>Edit</th></tr></thead><tbody id="productsBody"></tbody></table></div>
     </section>
@@ -617,8 +618,9 @@
       <h2 id="productEditorTitle">Edit product</h2><p class="muted" id="productIdText"></p>
       <div class="editor-grid">
         <label class="full">Name<input id="productName" maxlength="160" required></label>
-        <label>Price (Rs.)<input id="productPrice" type="number" min="1" max="1000000" step="1" required></label>
-        <label>Category<select id="productCategory" required></select></label>
+        <label>Selling price (Rs.)<input id="productPrice" type="number" min="1" max="1000000" step="1" required></label>
+        <label>Original price (Rs., optional)<input id="productOriginalPrice" type="number" min="1" max="1000000" step="1"><span class="muted">Shown with a cut next to the selling price. Leave empty for no discount.</span></label>
+        <label class="full">Category<select id="productCategory" required></select></label>
         <label class="full">Description<textarea id="productDescription" maxlength="5000"></textarea></label>
         <label>Main image path or HTTPS URL<input id="productImage" required><img id="productImagePreview" class="editor-preview" alt="Main product preview"></label>
         <label>Hover image path or HTTPS URL<input id="productHoverImage"><img id="productHoverPreview" class="editor-preview" alt="Hover product preview"></label>

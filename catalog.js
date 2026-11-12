@@ -13,7 +13,9 @@
 //   name          display name (cart keys use the stable id)
 //   category      one of the ids in `categories` below
 //   categoryLabel human-readable category name
-//   price         integer rupees
+//   price         integer rupees (selling price)
+//   originalPrice optional pre-discount price; shown struck through when it
+//                 exceeds price
 //   description   shown on the product page
 //   image         path relative to the site root
 //   hoverImage    optional second photo shown when a product card is hovered;
@@ -35,6 +37,7 @@ var EVORA_CATALOG = {
       category: 'women',
       categoryLabel: 'Women',
       price: 4299,
+      originalPrice: 5599,
       description: 'A two-piece set in soft olive with a relaxed, fluid drape. Loose falling top and matching wide-leg trousers — an effortless head-to-toe look.',
       image: 'assets/products/olive-drape-coord-set.jpg',
       available: true
@@ -45,6 +48,7 @@ var EVORA_CATALOG = {
       category: 'women',
       categoryLabel: 'Women',
       price: 2699,
+      originalPrice: 3499,
       description: 'A wrap-front tunic in muted mauve with delicate embroidered trim along the edges. Falls loose and light for everyday wear.',
       image: 'assets/products/mauve-embroidered-wrap-tunic.jpg',
       available: true
@@ -55,6 +59,7 @@ var EVORA_CATALOG = {
       category: 'women',
       categoryLabel: 'Women',
       price: 2499,
+      originalPrice: 3199,
       description: 'Deep plum blouse with a clean square neckline, balloon sleeves and tonal embroidery across the chest. Dressy without trying too hard.',
       image: 'assets/products/plum-square-neck-blouse.jpg',
       available: true
@@ -65,6 +70,7 @@ var EVORA_CATALOG = {
       category: 'men',
       categoryLabel: 'Men',
       price: 2899,
+      originalPrice: 3799,
       description: 'Soft beige camp-collar shirt finished with brown floral appliqué across the front. Relaxed fit, easy over a tee or on its own.',
       image: 'assets/products/beige-floral-applique-shirt.jpg',
       available: true
@@ -75,6 +81,7 @@ var EVORA_CATALOG = {
       category: 'men',
       categoryLabel: 'Men',
       price: 2899,
+      originalPrice: 3799,
       description: 'Bright red resort shirt with parrot and palm embroidery. Open camp collar and a breezy cut made for warm days.',
       image: 'assets/products/red-parrot-resort-shirt.jpg',
       available: true
@@ -85,6 +92,7 @@ var EVORA_CATALOG = {
       category: 'men',
       categoryLabel: 'Men',
       price: 4499,
+      originalPrice: 5799,
       description: 'Brown-and-white striped shirt paired with matching wide-leg trousers, styled with a knit tie. A complete outfit in one order.',
       image: 'assets/products/brown-stripe-shirt-trouser-set.jpg',
       available: true
@@ -95,6 +103,7 @@ var EVORA_CATALOG = {
       category: 'men',
       categoryLabel: 'Men',
       price: 2799,
+      originalPrice: 3599,
       description: 'Rust-toned shirt printed with bold black tribal motifs. A statement piece that keeps the rest of the outfit simple.',
       image: 'assets/products/rust-tribal-print-shirt.jpg',
       available: true
@@ -105,6 +114,7 @@ var EVORA_CATALOG = {
       category: 'men',
       categoryLabel: 'Men',
       price: 2699,
+      originalPrice: 3499,
       description: 'Oversized shirt in red-and-white diagonal stripes. Dropped shoulders and a boxy cut for an easy streetwear fit.',
       image: 'assets/products/red-diagonal-stripe-shirt.jpg',
       available: true
@@ -115,6 +125,7 @@ var EVORA_CATALOG = {
       category: 'men',
       categoryLabel: 'Men',
       price: 2899,
+      originalPrice: 3799,
       description: 'Dark green shirt with playful panda-and-bamboo embroidery. A subtle shine in the fabric keeps it looking sharp.',
       image: 'assets/products/green-panda-embroidered-shirt.jpg',
       available: true
@@ -125,6 +136,7 @@ var EVORA_CATALOG = {
       category: 'men',
       categoryLabel: 'Men',
       price: 2999,
+      originalPrice: 3899,
       description: 'Cream long-sleeve pullover with floral embroidery along the hem. Soft, warm and quietly detailed.',
       image: 'assets/products/cream-floral-hem-pullover.jpg',
       available: true
@@ -135,6 +147,7 @@ var EVORA_CATALOG = {
       category: 'men',
       categoryLabel: 'Men',
       price: 2599,
+      originalPrice: 3399,
       description: 'Breathable cream linen kurta with a henley neck and red embroidery at the collar. Classic cut, modern finish.',
       image: 'assets/products/cream-linen-embroidered-kurta.jpg',
       available: true
@@ -145,6 +158,7 @@ var EVORA_CATALOG = {
       category: 'unisex',
       categoryLabel: 'Unisex',
       price: 1999,
+      originalPrice: 2599,
       description: 'Heather grey tee with contrast charcoal raglan sleeves and a star print. Soft cotton, everyday fit.',
       image: 'assets/products/grey-raglan-star-tee.jpg',
       available: true
@@ -155,6 +169,7 @@ var EVORA_CATALOG = {
       category: 'unisex',
       categoryLabel: 'Unisex',
       price: 3199,
+      originalPrice: 4199,
       description: 'Chunky grey knit with abstract black lettering across the chest. Heavyweight yarn for real winter warmth.',
       image: 'assets/products/grey-graphic-knit-sweater.jpg',
       available: true
@@ -165,6 +180,7 @@ var EVORA_CATALOG = {
       category: 'women',
       categoryLabel: 'Women',
       price: 2199,
+      originalPrice: 2899,
       description: 'Slim long-sleeve tee in brown-and-pink horizontal stripes. An easy layering piece that works tucked or loose.',
       image: 'assets/products/brown-pink-stripe-tee.jpg',
       available: true
@@ -175,6 +191,7 @@ var EVORA_CATALOG = {
       category: 'women',
       categoryLabel: 'Women',
       price: 2499,
+      originalPrice: 3199,
       description: 'Rich purple wrap blouse with embroidered trim at the neckline and sleeves. A flattering cross-front drape.',
       image: 'assets/products/purple-embroidered-wrap-blouse.jpg',
       available: true
@@ -185,6 +202,7 @@ var EVORA_CATALOG = {
       category: 'women',
       categoryLabel: 'Women',
       price: 2299,
+      originalPrice: 2999,
       description: 'Deep maroon top with a clean V-neck and fitted long sleeves. A simple base layer in a colour that carries the outfit.',
       image: 'assets/products/maroon-v-neck-top.jpg',
       available: true
@@ -195,6 +213,7 @@ var EVORA_CATALOG = {
       category: 'men',
       categoryLabel: 'Men',
       price: 2799,
+      originalPrice: 3599,
       description: 'Classic rugby polo in maroon stripes with a contrast white collar. Heavyweight cotton that holds its shape.',
       image: 'assets/products/maroon-stripe-rugby-polo.jpg',
       available: true
@@ -205,6 +224,7 @@ var EVORA_CATALOG = {
       category: 'men',
       categoryLabel: 'Men',
       price: 2799,
+      originalPrice: 3599,
       description: 'Rugby polo in green-and-brown stripes with a crisp white collar. Vintage sports feel, everyday comfort.',
       image: 'assets/products/green-stripe-rugby-polo.jpg',
       available: true
@@ -215,6 +235,7 @@ var EVORA_CATALOG = {
       category: 'unisex',
       categoryLabel: 'Unisex',
       price: 2599,
+      originalPrice: 3399,
       description: 'Grey sweatpants with a black gothic print down the leg. Soft fleece inside, relaxed fit, elastic cuffs.',
       image: 'assets/products/grey-gothic-print-sweatpants.jpg',
       available: true
@@ -225,6 +246,7 @@ var EVORA_CATALOG = {
       category: 'men',
       categoryLabel: 'Men',
       price: 4999,
+      originalPrice: 6499,
       description: 'A layered look: black knit over a sharp shirt with a red tie, finished with wide-leg trousers. The full outfit in one order.',
       image: 'assets/products/black-layered-knit-set.jpg',
       available: true
@@ -235,6 +257,7 @@ var EVORA_CATALOG = {
       category: 'unisex',
       categoryLabel: 'Unisex',
       price: 2499,
+      originalPrice: 3199,
       description: 'Chocolate brown sweatpants with a wide leg and a drawstring waist. Heavy, soft fleece that drapes instead of clinging.',
       image: 'assets/products/brown-wide-leg-sweatpants.jpg',
       hoverImage: 'assets/products/brown-wide-leg-sweatpants-model.jpg',

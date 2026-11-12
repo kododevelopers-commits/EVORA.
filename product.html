@@ -223,6 +223,7 @@
           slug: p.id,
           name: p.name,
           price: p.price,
+          originalPrice: p.originalPrice,
           cat: p.category,
           catLabel: p.categoryLabel,
           img: p.image,
@@ -253,7 +254,11 @@
       document.querySelector('.product-meta').style.display = '';
       document.getElementById('productPrice').style.display = '';
       document.getElementById('productTitle').textContent = product.name;
-      document.getElementById('productPrice').textContent = 'Rs. ' + product.price.toLocaleString();
+      var hasDiscount = Number(product.originalPrice) > product.price;
+      document.getElementById('productPrice').innerHTML =
+        '<span class="price">Rs. ' + product.price.toLocaleString('en-US') + '</span>' +
+        (hasDiscount ? '<span class="price-original">Rs. ' + Number(product.originalPrice).toLocaleString('en-US') + '</span>' +
+          '<span class="price-save">Save ' + Math.round((1 - product.price / product.originalPrice) * 100) + '%</span>' : '');
       document.getElementById('productDesc').textContent = product.desc;
       document.getElementById('productCategory').textContent = product.catLabel || product.cat;
       document.getElementById('productEyebrow').textContent = (product.catLabel || product.cat) + ' · New';
@@ -344,7 +349,9 @@
             '<div class="menu-info">' +
               '<h3 class="menu-title">' + escapeHtml(p.name) + '</h3>' +
               '<div class="menu-bottom">' +
-                '<span class="price">Rs. ' + p.price.toLocaleString() + '</span>' +
+                '<span class="price-group"><span class="price">Rs. ' + p.price.toLocaleString('en-US') + '</span>' +
+                (Number(p.originalPrice) > p.price ? '<span class="price-original">Rs. ' + Number(p.originalPrice).toLocaleString('en-US') + '</span>' : '') +
+                '</span>' +
                 '<button class="add-btn" type="button" aria-label="Add to cart">+</button>' +
                 '<div class="qty-control" style="display:none;">' +
                   '<button class="qty-btn qty-minus" type="button" aria-label="Decrease quantity">&minus;</button>' +

@@ -163,7 +163,7 @@ app.use(function (req, res, next) {
 // polls them.
 const writeLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 30,                  // 30 submissions per IP per window
+  max: Number(process.env.WRITE_RATE_MAX) || 30, // 30 submissions per IP per window
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: 'Too many requests — please wait a few minutes and try again.' }
@@ -1096,6 +1096,7 @@ app.delete('/api/admin/staff/:email', requireAdmin, requireOwner, writeLimiter, 
   res.json({ success: true });
 }));
 app.get('/api/admin/products', requireAdmin, requireManager, adminAction(async (req, res) => res.json(await products.list())));
+app.post('/api/admin/products', requireAdmin, requireManager, writeLimiter, adminAction(async (req, res) => res.status(201).json(await products.create(req.body))));
 app.patch('/api/admin/products/:id', requireAdmin, requireManager, writeLimiter, adminAction(async (req, res) => res.json(await products.update(req.params.id, req.body))));
 app.post('/api/admin/product-images', requireAdmin, requireManager, writeLimiter, adminAction(async (req, res) => res.status(201).json(await products.upload(req.body))));
 

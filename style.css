@@ -1616,6 +1616,44 @@ button {
   font-weight: 800;
 }
 
+.price-group {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-start;
+  line-height: 1.25;
+  min-width: 0;
+}
+
+.price-original {
+  color: #9ca3af;
+  font-size: 12px;
+  font-weight: 500;
+  text-decoration: line-through;
+  text-decoration-thickness: 1.5px;
+}
+
+.price-save {
+  display: inline-block;
+  background: #1a1a1a;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+  padding: 3px 10px;
+  border-radius: 999px;
+}
+
+.menu-grid-home .price-original,
+.menu-full-grid .price-original { font-size: 11px; }
+
+.cp-item-price .price-group .price { font-size: 13px; font-weight: 700; }
+.cp-item-price .price-original { font-size: 11px; }
+.cp-upsell-price .price-group .price { font-size: 13px; }
+.cp-upsell-price .price-original { font-size: 11px; }
+.cli-price .price-group { align-items: flex-end; }
+.cli-price .price-group .price { font-size: 13px; }
+.cli-price .price-original { font-size: 11px; }
+
 .center-btn {
   width: fit-content;
   margin: 0 auto;
@@ -3710,11 +3748,18 @@ button {
 }
 
 .product-price {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 10px;
   font-size: 28px;
   font-weight: 900;
   color: #1a1a1a;
   margin-bottom: 18px;
 }
+
+.product-price .price { font-size: inherit; font-weight: inherit; color: inherit; }
+.product-price .price-original { font-size: 16px; font-weight: 600; }
 
 .product-desc {
   color: #555;
@@ -3936,6 +3981,10 @@ button {
 
   .menu-full-grid .price {
     font-size: 12.5px;
+  }
+
+  .menu-full-grid .price-original {
+    font-size: 10.5px;
   }
 
   .menu-full-grid .add-btn {

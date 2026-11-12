@@ -68,6 +68,16 @@
       .replace(/"/g, '&quot;');
   }
 
+  function priceGroupHtml(p) {
+    var original = Number(p.originalPrice);
+    var discounted = Number.isFinite(original) && original > Number(p.price);
+    var money = function (n) { return 'Rs. ' + Number(n).toLocaleString('en-US'); };
+    return '<span class="price-group">' +
+      '<span class="price">' + money(p.price) + '</span>' +
+      (discounted ? '<span class="price-original">' + money(original) + '</span>' : '') +
+      '</span>';
+  }
+
   function productCardHtml(p) {
     return '<a href="product.html?slug=' + encodeURIComponent(p.id) + '" class="menu-card-link">' +
         '<div class="menu-card" data-product-id="' + escapeHtml(p.id) + '" data-category="' + escapeHtml(p.category) + '">' +
@@ -80,7 +90,7 @@
           '<div class="menu-info">' +
             '<h3 class="menu-title">' + escapeHtml(p.name) + '</h3>' +
             '<div class="menu-bottom">' +
-              '<span class="price">Rs. ' + Number(p.price).toLocaleString('en-US') + '</span>' +
+              priceGroupHtml(p) +
               '<button class="add-btn" aria-label="Add to cart">+</button>' +
               '<div class="qty-control" style="display:none;">' +
                 '<button class="qty-btn qty-minus" type="button" aria-label="Decrease quantity">&minus;</button>' +
@@ -603,7 +613,7 @@
           '<img class="cp-item-img" src="' + escapeHtml(productImage(item.id)) + '" alt="' + escapeHtml(item.name) + '">' +
           '<div class="cp-item-info">' +
             '<div class="cp-item-name">' + escapeHtml(item.name) + '</div>' +
-            '<div class="cp-item-price">' + formatPrice(item.price) + '</div>' +
+            '<div class="cp-item-price">' + priceGroupHtml(productsById[item.id] || item) + '</div>' +
           '</div>' +
           '<div class="cp-item-qty">' +
             '<button type="button" class="cp-minus" data-key="' + escapeHtml(key) + '" aria-label="Remove one ' + escapeHtml(item.name) + '">&minus;</button>' +
@@ -643,7 +653,7 @@
               '<img src="' + escapeHtml(productImage(u.id)) + '" alt="' + escapeHtml(u.name) + '">' +
               '<button type="button" class="cp-upsell-add" data-id="' + escapeHtml(u.id) + '" aria-label="Add ' + escapeHtml(u.name) + '">&plus;</button>' +
             '</div>' +
-            '<div class="cp-upsell-price">' + formatPrice(u.price) + '</div>' +
+            '<div class="cp-upsell-price">' + priceGroupHtml(u) + '</div>' +
             '<div class="cp-upsell-name">' + escapeHtml(u.name) + '</div>' +
             '</div>';
         });
@@ -780,6 +790,8 @@
     var html = '';
     keys.forEach(function (key) {
       var item = cart[key];
+      var source = productsById[item.id];
+      var lineOriginal = source && source.originalPrice ? source.originalPrice * item.qty : null;
       html += '<div class="cart-line-item">' +
         '<span class="cli-name">' + escapeHtml(item.name) + '</span>' +
         '<div class="cli-qty-controls">' +
@@ -787,7 +799,7 @@
           '<span class="cli-qty-value">' + item.qty + '</span>' +
           '<button type="button" class="cli-qty-btn cli-plus" data-key="' + escapeHtml(key) + '" aria-label="Add one more ' + escapeHtml(item.name) + '">&plus;</button>' +
         '</div>' +
-        '<span class="cli-price">' + formatPrice(item.price * item.qty) + '</span>' +
+        '<span class="cli-price">' + priceGroupHtml({ price: item.price * item.qty, originalPrice: lineOriginal }) + '</span>' +
         '</div>';
     });
     itemsWrap.innerHTML = html;

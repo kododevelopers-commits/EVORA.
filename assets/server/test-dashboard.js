@@ -8,6 +8,7 @@ process.env.ADMIN_API_KEY = 'fixture-admin-key';
 process.env.EMAIL_PROVIDER = 'fixture';
 process.env.UPSTASH_REDIS_REST_URL = '';
 process.env.UPSTASH_REDIS_REST_TOKEN = '';
+process.env.WRITE_RATE_MAX = '1000';
 const members = [
   { email: 'evora.reply@gmail.com', name: 'EVORA', role: 'owner', created_at: new Date().toISOString() },
   { email: 'kododevelopers@gmail.com', name: 'KODO', role: 'admin', created_at: new Date().toISOString() },
@@ -78,11 +79,17 @@ global.fetch = async function (input, opts = {}) {
     if (method === 'DELETE') tables[name] = tables[name].filter(row => !rows.includes(row));
     if (method === 'POST') {
       const key = name === 'staff' ? 'email' : name === 'contacts' ? 'contact_id' : 'id';
+      const prefer = String(opts.headers.Prefer || '');
+      const inserted = [];
       for (const row of Array.isArray(body) ? body : [body]) {
         const found = tables[name].find(existing => existing[key] === row[key]);
-        if (found && !String(opts.headers.Prefer || '').includes('merge-duplicates')) return json({}, 409);
-        if (found) Object.assign(found, row); else tables[name].push(row);
+        if (found && !prefer.includes('merge-duplicates')) {
+          if (prefer.includes('ignore-duplicates')) continue;
+          return json({}, 409);
+        }
+        if (found) Object.assign(found, row); else { tables[name].push(row); inserted.push(row); }
       }
+      if (prefer.includes('return=representation')) return json(inserted);
     }
     return json(rows);
   }
@@ -183,6 +190,30 @@ async function run() {
     await expect('/api/admin/products/' + id, 'PATCH', { available: false }, owner, 200);
     await expect('/api/menu/' + id, 'GET', undefined, undefined, 404);
     await expect('/api/admin/products/' + id, 'PATCH', { available: true }, owner, 200);
+    await expect('/api/admin/products/' + id, 'PATCH', { originalPrice: 2000 }, admin, 400);
+    await expect('/api/admin/products/' + id, 'PATCH', { originalPrice: 5000 }, admin, 200);
+    await expect('/api/admin/products/' + id, 'PATCH', { price: 6000 }, admin, 400);
+    await expect('/api/admin/products/' + id, 'PATCH', { originalPrice: null }, admin, 200);
+    const newProduct = { name: 'Test Created Kurta', price: 1500, originalPrice: 2500, description: 'Created in test', category: 'men', image: sourceCatalog.items[3].image, available: true };
+    await expect('/api/admin/products', 'POST', newProduct, viewer, 403);
+    await expect('/api/admin/products', 'POST', { ...newProduct, price: 0 }, admin, 400);
+    await expect('/api/admin/products', 'POST', { ...newProduct, originalPrice: 1000 }, admin, 400);
+    await expect('/api/admin/products', 'POST', { ...newProduct, category: 'nope' }, admin, 400);
+    await expect('/api/admin/products', 'POST', { ...newProduct, image: 'javascript:alert(1)' }, admin, 400);
+    const { price, ...missingPrice } = newProduct;
+    await expect('/api/admin/products', 'POST', missingPrice, admin, 400);
+    const created = await expect('/api/admin/products', 'POST', newProduct, admin, 201);
+    assert.equal(created.body.id, 'test-created-kurta');
+    assert.equal(created.body.version, 1);
+    assert.equal(created.body.originalPrice, 2500);
+    assert.equal(created.body.categoryLabel, 'Men');
+    const createdMenu = await expect('/api/menu/' + created.body.id, 'GET', undefined, undefined, 200);
+    assert.equal(createdMenu.body.originalPrice, 2500);
+    const dup = await expect('/api/admin/products', 'POST', newProduct, owner, 201);
+    assert.equal(dup.body.id, 'test-created-kurta-2');
+    const createdOrder = { customer: { name: 'Tester', email: 'customer@example.test', phone: '03001234567', address: 'Test address' }, items: [{ id: created.body.id, name: 'Test Created Kurta', qty: 1, price: 1500 }], totals: { total: 1 } };
+    const placedCreated = await expect('/api/orders', 'POST', createdOrder, undefined, 201);
+    assert.equal(placedCreated.body.totals.total, 1500 + Math.round(1500 * .18) + 200);
     const order = { customer: { name: 'Tester', email: 'customer@example.test', phone: '03001234567', address: 'Test address' }, items: [{ id, name: 'Old product name', qty: 2, price: 1 }], totals: { total: 1 } };
     await expect('/api/orders', 'POST', order, undefined, 409);
     order.items[0].price = 3100;

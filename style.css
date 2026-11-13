@@ -3971,7 +3971,7 @@ button {
   }
 
   .carousel {
-    aspect-ratio: 21 / 8;
+    aspect-ratio: 3 / 4;
     border-radius: 20px;
     box-shadow: 0 10px 24px rgba(26, 26, 26, 0.12);
   }

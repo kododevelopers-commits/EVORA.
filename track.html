@@ -96,6 +96,21 @@
   @keyframes spin{to{transform:rotate(360deg);}}
   .auto-note{font-size:11px;color:var(--faint);width:100%;text-align:right;}
 
+  .foot-actions{display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
+  .cancel-btn{display:inline-flex;align-items:center;gap:8px;border:1px solid #f3c9c9;background:#fff;color:var(--red);font:600 13px/1 inherit;font-family:inherit;padding:9px 16px;border-radius:999px;cursor:pointer;transition:.18s;}
+  .cancel-btn:hover{background:#fef2f2;border-color:var(--red);}
+  .cancel-btn svg{width:15px;height:15px;}
+  .cancel-panel{margin-top:18px;border:1px solid #f3c9c9;background:#fffafa;border-radius:16px;padding:20px;animation:rise .3s cubic-bezier(.2,.7,.3,1) both;}
+  .cancel-panel h3{margin:0 0 6px;font-size:16px;font-weight:800;color:var(--ink);}
+  .cancel-panel p{margin:0 0 14px;font-size:13px;color:var(--muted);line-height:1.5;}
+  .cancel-panel input{width:100%;padding:12px 14px;border:1px solid var(--line);border-radius:12px;font:600 14px/1.2 inherit;font-family:inherit;color:var(--ink);background:#fff;}
+  .cancel-panel input:focus{outline:none;border-color:var(--ink);box-shadow:0 0 0 3px rgba(0,0,0,.08);}
+  .cancel-error{margin-top:10px;font-size:13px;font-weight:600;color:var(--red);background:#fef2f2;border:1px solid #fecaca;border-radius:10px;padding:10px 12px;}
+  .cancel-actions{display:flex;gap:10px;justify-content:flex-end;margin-top:14px;flex-wrap:wrap;}
+  .btn.danger{background:var(--red);border-color:var(--red);color:#fff;}
+  .btn.danger:hover{background:#b91c1c;border-color:#b91c1c;color:#fff;}
+  .btn.danger:disabled{opacity:.6;cursor:default;}
+
   .fab{position:absolute;right:22px;bottom:-26px;width:56px;height:56px;border-radius:50%;background:var(--ink);color:#fff;display:grid;place-items:center;box-shadow:0 10px 24px rgba(0,0,0,.3);text-decoration:none;transition:transform .2s,background .2s;z-index:5;}
   .fab svg{width:26px;height:26px;}
   .fab:hover{transform:translateY(-3px) scale(1.05);background:#000;}
@@ -238,11 +253,29 @@
             </div>
             <div class="card-foot">
               <div class="updated" id="updated"></div>
-              <button class="refresh-btn" id="refreshBtn" type="button">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 4v6h-6"/><path d="M1 20v-6h6"/><path d="M3.5 9a9 9 0 0 1 14.9-3.4L23 10"/><path d="M1 14l4.6 4.4A9 9 0 0 0 20.5 15"/></svg>
-                Refresh
-              </button>
+              <div class="foot-actions">
+                <button class="cancel-btn" id="cancelBtn" type="button" hidden>
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M15 9l-6 6"/><path d="M9 9l6 6"/></svg>
+                  Cancel order
+                </button>
+                <button class="refresh-btn" id="refreshBtn" type="button">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 4v6h-6"/><path d="M1 20v-6h6"/><path d="M3.5 9a9 9 0 0 1 14.9-3.4L23 10"/><path d="M1 14l4.6 4.4A9 9 0 0 0 20.5 15"/></svg>
+                  Refresh
+                </button>
+              </div>
               <div class="auto-note">Status updates automatically every 20 seconds.</div>
+            </div>
+            <div class="cancel-panel" id="cancelPanel" hidden>
+              <h3>Cancel this order?</h3>
+              <p>You can cancel while we&apos;re still preparing your order. Once it&apos;s out for delivery it can&apos;t be cancelled. Enter the email or phone number you used at checkout so we can confirm it&apos;s you.</p>
+              <form id="cancelForm">
+                <input id="cancelIdentity" type="text" placeholder="Email or phone on the order" autocomplete="off" spellcheck="false" aria-label="Email or phone number on the order" required>
+                <div class="cancel-error" id="cancelError" hidden></div>
+                <div class="cancel-actions">
+                  <button type="button" class="btn" id="cancelKeepBtn">Keep order</button>
+                  <button type="submit" class="btn danger" id="cancelConfirmBtn">Yes, cancel it</button>
+                </div>
+              </form>
             </div>
           </div>
         </div>
@@ -279,8 +312,8 @@
   var currentId = '';
   var lastStatus = null;
   var toastTimer = null;
-  function apiFetch(path) {
-    return window.EVORA_API ? window.EVORA_API.fetch(path) : fetch(path);
+  function apiFetch(path, options) {
+    return window.EVORA_API ? window.EVORA_API.fetch(path, options) : fetch(path, options);
   }
   function money(n) {
     return 'Rs. ' + Number(n || 0).toLocaleString('en-PK');
@@ -319,6 +352,27 @@
     loading.hidden = state !== 'loading';
     errorBox.hidden = state !== 'error';
     content.hidden = state !== 'content';
+  }
+  function resetCancelBtn() {
+    var b = $('cancelConfirmBtn');
+    b.disabled = false;
+    b.textContent = 'Yes, cancel it';
+  }
+  function openCancelPanel() {
+    $('cancelError').hidden = true;
+    $('cancelError').textContent = '';
+    resetCancelBtn();
+    $('cancelPanel').hidden = false;
+    $('cancelBtn').hidden = true;
+    $('cancelIdentity').focus();
+  }
+  function closeCancelPanel() {
+    $('cancelPanel').hidden = true;
+    $('cancelIdentity').value = '';
+    $('cancelError').hidden = true;
+    $('cancelError').textContent = '';
+    resetCancelBtn();
+    $('cancelBtn').hidden = !(lastStatus === 'received' || lastStatus === 'preparing');
   }
   function renderStepper(status) {
     var stepper = $('stepper');
@@ -395,6 +449,9 @@
     }
     renderSummary(order);
     $('updated').textContent = 'Last updated ' + fmtDateTime(order.statusUpdatedAt || order.receivedAt);
+    var cancellable = status === 'received' || status === 'preparing';
+    if (!cancellable) closeCancelPanel();
+    else $('cancelBtn').hidden = !$('cancelPanel').hidden;
     setBodyState('content');
   }
   function load(silent) {
@@ -428,6 +485,7 @@
   function startTracking(id) {
     currentId = id.trim().toUpperCase();
     lastStatus = null;
+    closeCancelPanel();
     showTracker();
     var url = new URL(window.location.href);
     url.searchParams.set('id', id);
@@ -445,6 +503,60 @@
   $('changeIdBtn').addEventListener('click', function () {
     $('gateInput').value = currentId;
     showGate();
+  });
+  $('cancelBtn').addEventListener('click', openCancelPanel);
+  $('cancelKeepBtn').addEventListener('click', closeCancelPanel);
+  $('cancelForm').addEventListener('submit', function (e) {
+    e.preventDefault();
+    var val = $('cancelIdentity').value.trim();
+    var errBox = $('cancelError');
+    errBox.hidden = true; errBox.textContent = '';
+    if (!val) {
+      errBox.textContent = 'Enter the email or phone number on the order.';
+      errBox.hidden = false;
+      $('cancelIdentity').focus();
+      return;
+    }
+    var payload = val.indexOf('@') !== -1 ? { email: val } : { phone: val };
+    var btn = $('cancelConfirmBtn');
+    btn.disabled = true; btn.textContent = 'Cancelling…';
+    apiFetch('/api/orders/' + encodeURIComponent(currentId) + '/cancel', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    })
+      .then(function (r) {
+        return r.json().catch(function () { return {}; }).then(function (data) {
+          return { ok: r.ok, status: r.status, data: data };
+        });
+      })
+      .then(function (res) {
+        if (res.ok && res.data && res.data.success) {
+          lastStatus = 'cancelled';
+          closeCancelPanel();
+          showToast('Your order has been cancelled.');
+          load(false);
+          return;
+        }
+        var msg = (res.data && res.data.error) || 'Could not cancel your order. Please try again.';
+        // The order changed state (shipped / delivered / gone): refresh the
+        // timeline and surface the reason as a toast rather than a stale form.
+        if (res.status === 409 || res.status === 404) {
+          if (res.data && res.data.status) lastStatus = res.data.status;
+          closeCancelPanel();
+          showToast(msg);
+          load(false);
+          return;
+        }
+        errBox.textContent = msg;
+        errBox.hidden = false;
+        resetCancelBtn();
+      })
+      .catch(function () {
+        errBox.textContent = 'We couldn’t reach the store. Check your connection and try again.';
+        errBox.hidden = false;
+        resetCancelBtn();
+      });
   });
   function isTerminal() {
     return lastStatus === 'delivered' || lastStatus === 'cancelled';

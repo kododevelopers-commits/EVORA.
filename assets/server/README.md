@@ -1,46 +1,57 @@
 # Evora — Backend
 
-This is the backend for the Evora site. It serves the static site
+This is the backend for the Evora site. Locally it serves the static site
 itself (HTML / CSS / JS / images) **and** a small JSON API the frontend uses
-to place orders, save contact messages, and show the menu.
+to place orders, save contact messages, track and cancel orders, show the
+menu, and let customers sign in to see their past orders. In production the
+same Express app runs as a Vercel Function
+(`api/index.js`) and the static site is served from `dist/`.
 
-It runs entirely on Node.js — no database server, no paid services required
-to try it out. Orders, contact submissions, and a tiny admin dashboard are
-all built in.
+It runs on Node.js. Data lives in **Supabase Postgres** in production (orders,
+contacts, staff, products); locally it falls back to JSON files so you can try
+it without any cloud account. A role-based admin dashboard is built in.
 
 ---
 
 ## Folder layout
 
 ```
-your-site/
-├── index.html
-├── menu.html
-├── checkout.html
-├── contact.html
-├── about.html
-├── style.css
-├── script.js
-├── catalog.js          <- single source of truth for products & prices
-├── admin.html          <- NEW: small admin dashboard
-├── admin.js            <- NEW: dashboard logic
+EVORA/
+├── index.html  menu.html  product.html
+├── checkout.html  track.html  contact.html  about.html
+├── style.css  script.js  admin.js
+├── catalog.js          <- seed catalogue + categories (live products are in Supabase)
+├── locations.js        <- Pakistan city→area dataset
+├── location-picker.js  <- checkout address picker + GPS / Google Maps
+├── api-client.js       <- finds the backend, whatever serves the page
+├── admin.html          <- role-based admin dashboard
+├── account.html  account.js  <- customer sign-in + their past orders
+├── api/index.js        <- Vercel Function entry (wraps server.js)
+├── vercel.json         <- Vercel build + rewrite config
+├── tools/build-site.js <- assembles dist/ for deployment
 ├── assets/
 │   └── server/         <- everything below is the backend
     ├── server.js         (the Express app)
     ├── package.json
+    ├── supabase-schema.sql (orders / contacts / staff / products tables)
+    ├── seed-dashboard.js (seeds fixture staff/products for local tests)
+    ├── test-dashboard.js (92 API scenarios + --preview fixture site)
     ├── test-email.js     (sends a test email to check your setup)
     ├── setup-email.ps1   (helper: saves your app password into .env)
     ├── .env.example      (copy to .env and fill in)
     ├── .gitignore
     ├── lib/              <- small helpers
-    │   ├── storage.js    (async JSON file store)
+    │   ├── storage.js    (backend picker: Supabase → Redis → JSON)
+    │   ├── supabase-store.js (Postgres REST backend + row mapping)
+    │   ├── products.js   (live catalogue: list/create/update/upload)
+    │   ├── staff.js      (staff directory + owner/admin/viewer roles)
     │   ├── validation.js (input validators)
-    │   ├── auth.js       (admin API-key middleware)
+    │   ├── auth.js       (two-step sign-in, sessions, role middleware)
+    │   ├── customer-auth.js (customer sign-in: verifies a Supabase Auth token)
     │   ├── brand.js      (the Evora logo, embedded into every email)
     │   └── mailer.js     (sending email + provider setup)
-    └── data/             <- runtime data (auto-created)
-        ├── .gitkeep
-        ├── orders.json    (created on first order)
+    └── data/             <- local JSON fallback (auto-created)
+        ├── orders.json    (created on first order, when Supabase is off)
         └── contacts.json  (created on first contact submission)
 ```
 
@@ -97,28 +108,47 @@ notification if you configured one — see step 5).
 ## 4. Use the admin dashboard
 
 The admin dashboard at `/admin.html` lets you see all orders, change their
-status (received → preparing → out for delivery → delivered), view contact
-submissions, and see basic stats.
+status (received → preparing → out for delivery → delivered, or cancelled),
+add and edit products, manage staff, view contact submissions, and see stats.
 
-1. Copy `.env.example` to `.env` (you'll do this in step 5 anyway).
-2. Set `ADMIN_API_KEY` in `.env` to a long random string. Easiest way:
+### Sign-in (two-step)
+
+1. Copy `.env.example` to `.env` and set `ADMIN_API_KEY` to a long random
+   string. Easiest way:
    ```
    node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
    ```
-3. Restart the server.
-4. Open http://localhost:3000/admin.html and paste the key in. The dashboard
-   stores the key in `sessionStorage` (so it disappears when you close the
-   tab) and polls for new orders every 15 seconds.
+   In production this same value is a Vercel environment variable.
+2. Make sure your email is in the **staff** table with a role (see below).
+   The fixed owner is `evora.reply@gmail.com`.
+3. Open `/admin.html`, enter your **staff email** and the **admin key**. The
+   server checks the key, then emails you a one-time sign-in code (via Brevo,
+   using Supabase Auth).
+4. Enter the code. You're signed in with **HttpOnly session cookies**
+   (`evora_access` / `evora_refresh`); "remember me" keeps the session 30 days.
+   The dashboard polls for new orders every 15 seconds.
 
-The admin key is required for these endpoints:
-- `GET  /api/orders`        — list orders (contains customer data)
-- `GET  /api/stats`         — revenue, order counts, top items
-- `GET  /api/contacts`      — contact form submissions
-- `PATCH /api/orders/:id/status` — change an order's status
+The admin key is only used to *start* sign-in — it is never stored in the
+browser. After that, every admin request is authenticated by the session
+cookie, not a key in a header or URL.
 
-Send it in the `x-admin-key` HTTP header (the dashboard does this). Query
-strings are deliberately not accepted: a key in a URL ends up in server logs,
-browser history and `Referer` headers.
+### Roles
+
+| Role | Access |
+|---|---|
+| **owner** | everything, plus staff management and email health (fixed `ROOT_OWNER`) |
+| **admin** | orders + products |
+| **viewer** | read-only orders/contacts; revenue and totals hidden |
+
+Staff are managed in the dashboard's **Staff** tab (owner only) and stored in
+the Supabase `staff` table. These endpoints require a signed-in session:
+
+- `GET  /api/orders`             — list orders (contains customer data)
+- `GET  /api/stats`              — revenue, order counts, top items
+- `GET  /api/contacts`           — contact form submissions
+- `PATCH /api/orders/:id/status` — change an order's status (owner/admin)
+- `GET/POST/PATCH/DELETE /api/admin/staff…` — staff management (owner)
+- `GET/POST/PATCH /api/admin/products…`     — product editing (owner/admin)
 
 ### CORS
 
@@ -207,7 +237,7 @@ To do it by hand instead: open `assets\server\.env` in Notepad and paste the
    emails you to verify it.
 3. Brevo dashboard → **SMTP & API**:
    - **API Keys** tab → **Create a new API key** (preferred) — uses HTTPS,
-     so it also works on hosts that block SMTP, such as Render's free tier.
+     so it also works on hosts that block SMTP, such as Vercel.
    - or **SMTP** tab → copy the **login** and create an **SMTP key** (local
      machines and paid hosts).
    Neither the login nor the keys are your Brevo account email or password.
@@ -257,9 +287,12 @@ SMTP_FROM=you@yourdomain.com   # optional, defaults to SMTP_USER
 | Contact form / complaint | `NOTIFY_EMAIL` | the customer's email | Their message, their name, phone, subject, plus a "Reply to <name>" button |
 | New order | `NOTIFY_EMAIL` | the customer's email | Items, totals, delivery address, payment method, plus a "Reply to <name>" button |
 | New order | the customer's email | `NOTIFY_EMAIL` | A branded confirmation: order ID, items table, totals, delivery address, "what happens next" and a "Track Your Order" button |
+| Customer cancels | `NOTIFY_EMAIL` | the customer's email | Which order was cancelled, customer details, items and total |
+| Customer cancels | the customer's email | `NOTIFY_EMAIL` | A branded "your order has been cancelled" note with a "View order" button |
+| Admin sign-in | the staff member's email | — | A one-time sign-in code |
 
 Because the customer is the reply-to address on the store's copies, pressing
-**Reply** in Gmail answers them directly — no copying addresses around. The
+**Reply** in your inbox answers them directly — no copying addresses around. The
 customer's copy is sent as both **HTML** (branded template) and plain text
 for clients that don't render HTML.
 
@@ -322,20 +355,35 @@ Common causes:
 | Method | Path                       | What it does |
 |--------|----------------------------|--------------|
 | GET    | `/health`                  | uptime / liveness check |
-| GET    | `/api/menu`                | list menu items (optional `?category=men`) |
-| GET    | `/api/menu/:id`            | get a single menu item |
-| GET    | `/api/orders/:id`          | look up one order by id |
+| GET    | `/api/menu`                | list live products (optional `?category=men`) |
+| GET    | `/api/menu/:id`            | get a single product |
+| GET    | `/api/orders/:id`          | look up one order by id — the public view returns only `customer.name`/`area`, never email/phone/address |
 | POST   | `/api/orders`              | place a new order (rate-limited: 30 / 15 min per IP) |
+| POST   | `/api/orders/:id/cancel`   | customer cancels their own order — only while `received`/`preparing`; verifies the order's email or phone (rate-limited) |
 | POST   | `/api/contact`             | save a contact-form submission (rate-limited: 5 / hour per IP) |
+| GET    | `/api/account/config`      | public sign-in config (Supabase URL + publishable key, or `enabled:false` when accounts are off) |
+| GET    | `/api/account/orders`      | a signed-in customer's own orders — needs `Authorization: Bearer <Supabase token>` with a **confirmed** email; returns only that email's orders, never contact details |
 
-### Admin only (require `x-admin-key` header)
+### Admin only (require a signed-in staff session cookie)
 
 | Method | Path                                | What it does |
 |--------|-------------------------------------|--------------|
+| POST   | `/api/admin/login`                  | start sign-in: staff email + `ADMIN_API_KEY` → emails a code |
+| POST   | `/api/admin/verify`                 | finish sign-in: email + code → sets session cookies |
+| POST   | `/api/admin/logout`                 | clear the session |
+| GET    | `/api/admin/me`                     | the signed-in staff member |
 | GET    | `/api/orders`                       | list all orders (newest first; optional `?status=preparing`) |
-| GET    | `/api/stats`                        | totals, revenue, top items |
+| GET    | `/api/stats`                        | totals, revenue, top items (revenue hidden for viewers) |
 | GET    | `/api/contacts`                     | list contact submissions |
-| PATCH  | `/api/orders/:id/status`            | change an order's status |
+| PATCH  | `/api/orders/:id/status`            | change an order's status (owner/admin) |
+| GET    | `/api/admin/staff`                  | list staff |
+| POST   | `/api/admin/staff`                  | add staff (owner) |
+| PATCH  | `/api/admin/staff/:email`           | update a staff role/name (owner) |
+| DELETE | `/api/admin/staff/:email`           | remove staff (owner) |
+| GET    | `/api/admin/products`               | list products for editing (owner/admin) |
+| POST   | `/api/admin/products`               | create a product (owner/admin) |
+| PATCH  | `/api/admin/products/:id`           | edit a product (owner/admin) |
+| POST   | `/api/admin/product-images`         | upload a product photo to Supabase Storage (owner/admin) |
 
 ### Order payload (POST /api/orders)
 
@@ -375,27 +423,37 @@ The server responds with `{ success: true, orderId: "EVR-...", status: "received
 
 ## Notes
 
-- Orders and contact submissions are stored in plain JSON files. That's fine
-  for learning and small-scale testing; a real store should use a database
-  (e.g. PostgreSQL, MongoDB) — to swap one in, only `lib/storage.js` would
-  need to change.
+- **Storage.** In production, orders, contacts and staff live in **Supabase
+  Postgres** (`SUPABASE_URL` + `SUPABASE_SERVICE_KEY`), and products live in
+  the Supabase `products` table. `lib/storage.js` picks the backend:
+  Supabase → Upstash Redis → local JSON files. Locally, with no cloud
+  credentials, orders/contacts fall back to `data/*.json`. **Products always
+  require Supabase** — there is no JSON fallback for the catalogue.
+- **Customer accounts.** Shoppers sign in at `/account.html` with Google or
+  email + password (Supabase Auth, in the browser). The server only verifies
+  their token (`lib/customer-auth.js`) and reads orders whose `customer.email`
+  matches their **confirmed** email — it never trusts an email sent by the
+  browser, and the database stays locked (RLS denies `anon`/`authenticated`).
+  Set `SUPABASE_ANON_KEY` (the public *publishable* key) to turn accounts on;
+  leave it blank and `/account.html` shows a "coming soon" notice. See
+  `ACCOUNTS-SETUP.md` for the one-time dashboard setup.
 - There is no real payment processing here — "Cash on Delivery", "Card",
   "JazzCash", and "EasyPaisa" are recorded as the customer's chosen method,
   but no money actually moves. Wiring up Stripe / a local Pakistani gateway
   would be a separate step.
 - `.env` holds real secrets once you fill it in — it's already listed in
-  `.gitignore` so it won't be committed if you put this in Git.
+  `.gitignore` so it won't be committed if you put this in Git. In production
+  the same values are Vercel environment variables.
 - Rate limits live in `server.js` (look for `writeLimiter` / `contactLimiter`).
   Adjust the numbers if you need to.
-- To change products, prices or descriptions, edit `catalog.js` at the top of
-  the project — **not** the HTML. The same file is loaded by the browser and
-  required by the server, so the shop grids, product pages and the prices used
-  to verify orders all stay in sync. Restart the server after changing it
-  (Node caches required files).
+- **To change products, prices, original prices, photos or descriptions**, use
+  the admin dashboard's **Products** tab. They save to Supabase and show on the
+  storefront immediately. `catalog.js` is only the *seed* catalogue and the
+  category list — not the live source of truth.
 - Prices are never trusted from the browser. `POST /api/orders` looks every item
-  up in `catalog.js` and recomputes the subtotal, 18% GST and the Rs. 200
+  up in the live catalogue and recomputes the subtotal, 18% GST and the Rs. 200
   delivery charge, so editing prices in devtools cannot change what an order
-  costs. Item names must match the catalogue or the order is rejected.
+  costs. If a price changed since the page loaded, the order is rejected (409).
 - The server refuses to serve anything under `/assets/server`, so
   `orders.json`, `contacts.json`, `.env` and the server source cannot be
   downloaded from the site. Keep that guard if you change how static files are

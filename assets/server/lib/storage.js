@@ -13,9 +13,10 @@
 // ------------
 // Local development keeps using JSON files in data/ — nothing changes.
 //
-// When the server is deployed to a host with an ephemeral disk (Render's free
-// tier wipes the filesystem on every restart), set both of these environment
-// variables and the same API stores the data in Upstash Redis instead:
+// When the server is deployed to a host with an ephemeral disk (Vercel's
+// serverless functions wipe the filesystem on every cold start), set both of
+// these environment variables and the same API stores the data in Upstash
+// Redis instead:
 //
 //     UPSTASH_REDIS_REST_URL=https://xxxx.upstash.io
 //     UPSTASH_REDIS_REST_TOKEN=xxxx
@@ -116,7 +117,7 @@ function writeFileSafe(name, data) {
 // Redis backend (Upstash REST API)
 // ---------------------------------------------------------------------------
 // Upstash exposes Redis over plain HTTPS, so this needs no npm driver and
-// works anywhere fetch() exists (Node 18+, including Render). A command is
+// works anywhere fetch() exists (Node 18+, including Vercel). A command is
 // just a JSON array: POST ["GET","evora:orders"] -> { result: "..." }.
 async function redisCommand(command) {
   const cfg = redisConfig();

@@ -4,6 +4,7 @@ const sourceCatalog = require('../../catalog');
 
 process.env.SUPABASE_URL = 'https://evora-test.invalid';
 process.env.SUPABASE_SERVICE_KEY = 'fixture-service-key';
+process.env.SUPABASE_ANON_KEY = 'fixture-anon-key';
 process.env.ADMIN_API_KEY = 'fixture-admin-key';
 process.env.EMAIL_PROVIDER = 'fixture';
 process.env.UPSTASH_REDIS_REST_URL = '';
@@ -30,7 +31,12 @@ let brokenAuth = false;
 const realFetch = global.fetch;
 const json = (body, status = 200, headers = {}) => new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json', ...headers } });
 function fixtureToken(email) { return 'fixture-' + Buffer.from(email).toString('base64url'); }
-function credentialEmail(token) { return token.startsWith('fixture-') ? Buffer.from(token.slice('fixture-'.length), 'base64url').toString() : ''; }
+function fixtureUnconfirmedToken(email) { return 'unconfirmed-' + Buffer.from(email).toString('base64url'); }
+function credentialEmail(token) {
+  if (token.startsWith('fixture-')) return Buffer.from(token.slice('fixture-'.length), 'base64url').toString();
+  if (token.startsWith('unconfirmed-')) return Buffer.from(token.slice('unconfirmed-'.length), 'base64url').toString();
+  return '';
+}
 
 global.fetch = async function (input, opts = {}) {
   const url = new URL(input);
@@ -49,7 +55,10 @@ global.fetch = async function (input, opts = {}) {
   if (url.pathname === '/auth/v1/user') {
     const email = credentialEmail(token);
     if (!email || revoked.has(email)) return json({ error: 'Invalid token' }, 401);
-    return json({ email });
+    // Customer accounts require a confirmed email; 'unconfirmed-' tokens model
+    // a shopper who has not clicked their confirmation link yet.
+    if (token.startsWith('unconfirmed-')) return json({ email });
+    return json({ email, email_confirmed_at: new Date().toISOString() });
   }
   if (url.pathname === '/auth/v1/token') {
     const email = credentialEmail(body.refresh_token);
@@ -220,6 +229,59 @@ async function run() {
     const placed = await expect('/api/orders', 'POST', order, undefined, 201);
     assert.equal(placed.body.totals.total, 6200 + Math.round(6200 * .18) + 200);
     assert.equal(tables.orders.at(-1).items[0].name, 'Edited Test Product');
+    // --- Customer self-service cancellation ---
+    const cancelId = placed.body.orderId;
+    const publicView = await expect('/api/orders/' + cancelId, 'GET', undefined, undefined, 200);
+    assert.equal(publicView.body.customer.name, 'Tester');
+    assert.equal(Object.hasOwn(publicView.body.customer, 'email'), false);
+    assert.equal(Object.hasOwn(publicView.body.customer, 'phone'), false);
+    assert.equal(Object.hasOwn(publicView.body.customer, 'address'), false);
+    await expect('/api/orders/' + cancelId + '/cancel', 'POST', {}, undefined, 400);
+    await expect('/api/orders/' + cancelId + '/cancel', 'POST', { email: 'wrong@example.test' }, undefined, 403);
+    await expect('/api/orders/' + cancelId + '/cancel', 'POST', { phone: '03009999999' }, undefined, 403);
+    await expect('/api/orders/NOPE-404/cancel', 'POST', { email: 'customer@example.test' }, undefined, 404);
+    // 'received' is cancellable; a +92-format phone still matches the stored 0-prefixed number.
+    const cancelled = await expect('/api/orders/' + cancelId + '/cancel', 'POST', { phone: '+92 300 1234567' }, undefined, 200);
+    assert.equal(cancelled.body.status, 'cancelled');
+    assert.equal(tables.orders.find(row => row.id === cancelId).status, 'cancelled');
+    await expect('/api/orders/' + cancelId + '/cancel', 'POST', { email: 'customer@example.test' }, undefined, 409);
+    const freshOrder = () => ({ customer: { name: 'Tester', email: 'customer@example.test', phone: '03001234567', address: 'Test address' }, items: [{ id: created.body.id, name: 'Test Created Kurta', qty: 1, price: 1500 }], totals: { total: 1 } });
+    // 'preparing' is still cancellable.
+    const prep = await expect('/api/orders', 'POST', freshOrder(), undefined, 201);
+    await expect('/api/orders/' + prep.body.orderId + '/status', 'PATCH', { status: 'preparing' }, admin, 200);
+    await expect('/api/orders/' + prep.body.orderId + '/cancel', 'POST', { email: 'customer@example.test' }, undefined, 200);
+    // 'out_for_delivery' locks cancellation even with the correct identity.
+    const shipped = await expect('/api/orders', 'POST', freshOrder(), undefined, 201);
+    await expect('/api/orders/' + shipped.body.orderId + '/status', 'PATCH', { status: 'out_for_delivery' }, admin, 200);
+    const lockedShip = await expect('/api/orders/' + shipped.body.orderId + '/cancel', 'POST', { email: 'customer@example.test' }, undefined, 409);
+    assert.equal(lockedShip.body.status, 'out_for_delivery');
+    // 'delivered' locks cancellation too.
+    const delivered = await expect('/api/orders', 'POST', freshOrder(), undefined, 201);
+    await expect('/api/orders/' + delivered.body.orderId + '/status', 'PATCH', { status: 'delivered' }, admin, 200);
+    await expect('/api/orders/' + delivered.body.orderId + '/cancel', 'POST', { email: 'customer@example.test' }, undefined, 409);
+    // --- Customer accounts (config + own-orders lookup) ---
+    const cfg = await expect('/api/account/config', 'GET', undefined, undefined, 200);
+    assert.equal(cfg.body.enabled, true);
+    assert.equal(cfg.body.supabaseAnonKey, 'fixture-anon-key');
+    assert.equal(cfg.body.supabaseUrl, process.env.SUPABASE_URL);
+    await expect('/api/account/orders', 'GET', undefined, undefined, 401); // no token
+    const badTok = await call('/api/account/orders', 'GET', undefined, undefined, { Authorization: 'Bearer garbage' });
+    assert.equal(badTok.status, 401); checks++;
+    const unconf = await call('/api/account/orders', 'GET', undefined, undefined, { Authorization: 'Bearer ' + fixtureUnconfirmedToken('customer@example.test') });
+    assert.equal(unconf.status, 403); checks++;
+    const acct = await call('/api/account/orders', 'GET', undefined, undefined, { Authorization: 'Bearer ' + fixtureToken('customer@example.test') });
+    assert.equal(acct.status, 200); checks++;
+    assert.equal(acct.body.email, 'customer@example.test');
+    assert.ok(acct.body.orders.length > 0, 'customer should see their past orders');
+    acct.body.orders.forEach(o => {
+      assert.ok(o.orderId && o.status && Array.isArray(o.items), 'order view shape');
+      assert.equal(Object.hasOwn(o, 'customer'), false, 'no contact details leaked in account view');
+    });
+    const dates = acct.body.orders.map(o => String(o.receivedAt || ''));
+    assert.deepEqual(dates, dates.slice().sort((a, b) => b.localeCompare(a)), 'newest first');
+    const stranger = await call('/api/account/orders', 'GET', undefined, undefined, { Authorization: 'Bearer ' + fixtureToken('nobody@example.test') });
+    assert.equal(stranger.status, 200); checks++;
+    assert.deepEqual(stranger.body.orders, [], 'a different email sees no one else’s orders');
     await expect('/api/admin/product-images', 'POST', { contentType: 'image/png', data: Buffer.from('not an image').toString('base64') }, admin, 400);
     await expect('/api/admin/product-images', 'POST', { contentType: 'image/png', data: Buffer.from('89504e470d0a1a0a', 'hex').toString('base64') }, admin, 201);
     assert.equal(uploadedImages, 1);

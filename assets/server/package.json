@@ -9,10 +9,7 @@
     "dev": "node --watch server.js",
     "test": "node test-dashboard.js",
     "seed:dashboard": "node seed-dashboard.js",
-    "test:email": "node test-email.js",
-    "migrate:redis": "node migrate-to-redis.js",
-    "migrate:supabase": "node migrate-to-supabase.js",
-    "migrate:from-netlify": "node migrate-from-netlify.js"
+    "test:email": "node test-email.js"
   },
   "dependencies": {
     "dotenv": "^16.4.5",

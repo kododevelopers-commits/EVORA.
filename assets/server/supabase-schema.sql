@@ -4,7 +4,7 @@
 -- Paste this whole file into Supabase -> SQL Editor -> New query -> Run.
 -- It is safe to run more than once: tables, indexes and grants are idempotent.
 --
--- Access model: the Netlify function connects with the service_role key, so
+-- Access model: the Vercel function connects with the service_role key, so
 -- RLS is enabled with no policies — the public anon key can read nothing.
 -- ============================================================================
 

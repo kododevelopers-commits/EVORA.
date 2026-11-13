@@ -125,10 +125,9 @@
       'text-align:center', 'box-shadow:0 2px 12px rgba(0,0,0,.25)'
     ].join(';');
     banner.innerHTML =
-      '<strong>The Evora backend isn\'t running.</strong> ' +
-      'Orders and complaints can\'t be sent yet.<br>' +
-      'Start it by double-clicking <code>start-evora.cmd</code> in the project folder ' +
-      '(or run <code>npm start</code> inside <code>assets\\server</code>), then reload this page.' +
+      '<strong>The Evora order service is temporarily unavailable.</strong> ' +
+      'Orders and complaints can\'t be sent right now.<br>' +
+      'Please check your internet connection, then reload this page. If it keeps happening, try again in a few minutes.' +
       '<button type="button" style="margin-left:12px;background:#fff;color:#b3261e;' +
       'border:0;border-radius:6px;padding:6px 12px;font-weight:700;cursor:pointer" ' +
       'onclick="location.reload()">Reload</button>';

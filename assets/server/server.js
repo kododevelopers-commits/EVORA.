@@ -4,7 +4,7 @@
 // A small Express server that:
 //   1. Serves your existing site (index.html, menu.html, checkout.html, ...)
 //   2. Handles orders  (POST /api/orders, GET /api/orders, GET /api/orders/:id,
-//                       PATCH /api/orders/:id/status)
+//                       PATCH /api/orders/:id/status, POST /api/orders/:id/cancel)
 //   3. Handles contact (POST /api/contact)
 //   4. Exposes the menu (GET /api/menu, GET /api/menu/:id)
 //   5. Exposes basic stats for the admin dashboard (GET /api/stats)
@@ -31,11 +31,12 @@ const { requireAdmin, requireManager, requireOwner, sameOrigin, startLogin, veri
 const staff = require('./lib/staff');
 const products = require('./lib/products');
 const mailer = require('./lib/mailer');
+const customerAuth = require('./lib/customer-auth');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Both Netlify and Vercel sit one proxy hop in front of the function, so trust
+// Vercel sits one proxy hop in front of the function, so trust
 // the first X-Forwarded-For entry to get the real client IP for rate limiting.
 app.set('trust proxy', 1);
 
@@ -110,7 +111,7 @@ app.use(function (req, res, next) {
     res.set('Access-Control-Allow-Origin', origin);
     res.set('Vary', 'Origin');
     res.set('Access-Control-Allow-Methods', 'GET,POST,PATCH,DELETE,OPTIONS');
-    res.set('Access-Control-Allow-Headers', 'Content-Type,x-admin-key,x-admin-email');
+    res.set('Access-Control-Allow-Headers', 'Content-Type,Authorization,x-admin-key,x-admin-email');
   }
   // Pre-flight requests never carry a body — answer them here.
   if (req.method === 'OPTIONS') {
@@ -175,6 +176,17 @@ const contactLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: 'Too many messages — please try again later.' }
+});
+
+// Each account-orders call verifies a token against Supabase Auth, so cap it
+// generously (the page loads once per visit, not on a poll) to keep a flood of
+// bogus tokens from hammering the auth service.
+const accountLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: Number(process.env.ACCOUNT_RATE_MAX) || 120,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many requests — please wait a few minutes and try again.' }
 });
 
 // ---------------------------------------------------------------------------
@@ -691,6 +703,138 @@ function buildCustomerOrderEmailHtml(order, baseOverride) {
   ].join('\n');
 }
 
+// Cancellation notice. `forStore` switches between the shop's internal copy
+// (full customer details + items) and the customer's copy (a short, friendly
+// confirmation that nothing will be delivered or charged).
+function buildCancelEmailText(order, forStore) {
+  const c = order.customer;
+  const when = fmtDateTime(order.statusUpdatedAt || order.receivedAt);
+  const lines = [];
+  if (forStore) {
+    lines.push('Order cancelled by the customer: ' + order.orderId);
+    lines.push('Cancelled at: ' + when);
+    lines.push('');
+    lines.push('Customer: ' + c.name);
+    lines.push('Email:    ' + c.email);
+    lines.push('Phone:    ' + c.phone);
+    lines.push('Address:  ' + c.address + ' (' + c.area + ')');
+    lines.push('');
+    lines.push('Items:');
+    order.items.forEach(function (it) {
+      lines.push('  - ' + it.qty + ' x ' + it.name + ' (Rs. ' + it.price + ' each)');
+    });
+    lines.push('');
+    lines.push('Total:    Rs. ' + order.totals.total);
+    lines.push('Payment method: ' + order.payment.methodLabel);
+    lines.push('');
+    lines.push('Cancelled from the tracking page. No action is needed unless the customer contacts you.');
+    return lines.join('\n');
+  }
+  const isCOD = (order.payment && order.payment.method === 'cod');
+  lines.push('Hi ' + c.name + ',');
+  lines.push('');
+  lines.push('Your Evora order #' + order.orderId + ' has been cancelled, as requested.');
+  lines.push('It will not be delivered' + (isCOD ? ' and you won\'t be charged.' : '.'));
+  lines.push('');
+  lines.push('Cancelled on ' + when);
+  lines.push('');
+  lines.push('If you didn\'t request this, please contact us right away at 0334-3745379 or reply to this email.');
+  lines.push('');
+  lines.push('— Evora');
+  lines.push('  Modern clothing, made for everyday life.');
+  return lines.join('\n');
+}
+
+function buildCancelEmailHtml(order, baseOverride, forStore) {
+  const c = order.customer;
+  const baseUrl = emailBase(baseOverride);
+  const orderId = escHtml(order.orderId);
+  const name = escHtml(c.name);
+  const when = escHtml(fmtDateTime(order.statusUpdatedAt || order.receivedAt));
+  const isCOD = (order.payment && order.payment.method === 'cod');
+  const brandHeader = brand.logoHtml({ height: 44, maxWidth: 240, base: baseUrl });
+  const accent = '#b3261e';
+
+  const heading = forStore ? 'Order cancelled by customer' : 'Your order has been cancelled';
+  const intro = forStore
+    ? 'This order was cancelled from the tracking page. No action is needed unless the customer reaches out.'
+    : 'As requested, this order has been cancelled and will not be delivered' + (isCOD ? '. You won\'t be charged.' : '.');
+
+  const detailRows = forStore
+    ? '<tr><td style="padding:5px 0; font-size:12px; color:#6b7280;">Email</td><td align="right" style="padding:5px 0; font-size:13px; color:#1a1a1a; font-weight:600;">' + escHtml(c.email) + '</td></tr>' +
+      '<tr><td style="padding:5px 0; font-size:12px; color:#6b7280;">Phone</td><td align="right" style="padding:5px 0; font-size:13px; color:#1a1a1a; font-weight:600;">' + escHtml(c.phone) + '</td></tr>' +
+      '<tr><td style="padding:5px 0; font-size:12px; color:#6b7280;">Address</td><td align="right" style="padding:5px 0; font-size:13px; color:#1a1a1a; font-weight:600;">' + escHtml(c.address + ', ' + c.area) + '</td></tr>' +
+      '<tr><td style="padding:5px 0; font-size:12px; color:#6b7280;">Total</td><td align="right" style="padding:5px 0; font-size:13px; color:#1a1a1a; font-weight:600;">Rs. ' + fmtMoney(order.totals.total) + '</td></tr>'
+    : '<tr><td style="padding:5px 0; font-size:12px; color:#6b7280;">Order ID</td><td align="right" style="padding:5px 0; font-size:13px; color:#1a1a1a; font-weight:700; font-family:ui-monospace,SFMono-Regular,Menlo,monospace;">' + orderId + '</td></tr>' +
+      '<tr><td style="padding:5px 0; font-size:12px; color:#6b7280;">Cancelled on</td><td align="right" style="padding:5px 0; font-size:13px; color:#1a1a1a; font-weight:600;">' + when + '</td></tr>';
+
+  const itemsRows = order.items.map(function (it) {
+    return '<tr>' +
+      '<td style="padding:8px 0; font-size:13px; color:#1a1a1a; border-bottom:1px solid #f1f2f4;">' + escHtml(it.name) + ' <span style="color:#9ca3af;">× ' + escHtml(it.qty) + '</span></td>' +
+      '<td align="right" style="padding:8px 0; font-size:13px; color:#1a1a1a; font-weight:600; border-bottom:1px solid #f1f2f4;">Rs. ' + fmtMoney(it.qty * it.price) + '</td>' +
+    '</tr>';
+  }).join('');
+
+  const ctaHref = forStore ? baseUrl + '/admin.html' : baseUrl + '/track.html?id=' + orderId;
+  const ctaLabel = forStore ? 'Open dashboard' : 'View order';
+
+  return [
+'<!DOCTYPE html>',
+'<html lang="en">',
+'<head>',
+'<meta charset="UTF-8">',
+'<meta name="viewport" content="width=device-width, initial-scale=1">',
+'<title>Order Cancelled</title>',
+'</head>',
+'<body style="margin:0; padding:0; background:#f4f4f5; font-family: Arial, Helvetica Neue, Helvetica, sans-serif; color:#1a1a1a;">',
+'  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#f4f4f5; padding:32px 16px;">',
+'    <tr><td align="center">',
+'      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width:560px; background:#ffffff; border-radius:18px; overflow:hidden; border:1px solid #ececec;">',
+'        <tr><td style="padding:28px 28px 20px 28px; border-bottom:1px solid #f1f1f1;">',
+'          ' + brandHeader,
+'          <div style="font-size:10px; color:#9ca3af; letter-spacing:1.6px; margin-top:8px; text-transform:uppercase; font-weight:700;">Order Cancelled</div>',
+'        </td></tr>',
+'        <tr><td style="padding:24px 28px 8px 28px;">',
+'          <h1 style="margin:0; font-size:24px; font-weight:700; color:#1a1a1a; letter-spacing:-0.3px;">' + heading + '</h1>',
+'          <p style="margin:8px 0 0 0; color:#6b7280; font-size:14px; line-height:1.5;">' + (forStore ? escHtml(name) + ' cancelled order ' + orderId + '. ' : 'Hi ' + name + ', ') + intro + '</p>',
+'        </td></tr>',
+'        <tr><td style="padding:16px 28px;">',
+'          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#fef2f2; border-radius:12px;"><tr>',
+'            <td style="padding:12px 16px;">',
+'              <table role="presentation" cellpadding="0" cellspacing="0" border="0"><tr>',
+'                <td style="width:24px; height:24px; background:' + accent + '; border-radius:50%; text-align:center; vertical-align:middle; color:#ffffff; font-weight:700; font-size:13px; line-height:24px;">&#10005;</td>',
+'                <td style="padding-left:10px; color:' + accent + '; font-weight:700; font-size:12px; letter-spacing:0.8px; text-transform:uppercase;">Cancelled</td>',
+'              </tr></table>',
+'            </td>',
+'          </tr></table>',
+'        </td></tr>',
+'        <tr><td style="padding:8px 28px 4px 28px;">',
+'          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#f9fafb; border-radius:8px; padding:12px 16px;">' + detailRows + '</table>',
+'        </td></tr>',
+'        <tr><td style="padding:16px 28px 8px 28px;">',
+'          <div style="font-size:11px; color:#9ca3af; letter-spacing:1.2px; font-weight:600; padding:8px 0 4px 0;">ITEMS</div>',
+'          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="border-collapse:collapse;">' + itemsRows + '</table>',
+'        </td></tr>',
+'        <tr><td style="padding:20px 28px 24px 28px;" align="center">',
+'          <table role="presentation" cellpadding="0" cellspacing="0" border="0"><tr>',
+'            <td align="center" bgcolor="#1a1a1a" style="border-radius:999px;">',
+'              <a href="' + ctaHref + '" target="_blank" style="display:inline-block; padding:14px 36px; color:#ffffff; text-decoration:none; font-weight:700; font-size:14px; border-radius:999px;">' + ctaLabel + '</a>',
+'            </td>',
+'          </tr></table>',
+'          <p style="margin:16px 0 0 0; color:#9ca3af; font-size:12px;">Questions? Call us at <a href="tel:0334-3745379" style="color:#1a1a1a; text-decoration:none; font-weight:600;">0334-3745379</a></p>',
+'        </td></tr>',
+'        <tr><td style="padding:22px 28px 28px 28px; text-align:center; border-top:1px solid #f1f1f1;">',
+'          <p style="margin:0; color:#1a1a1a; font-size:16px; font-weight:700;">Evora Team</p>',
+'          <p style="margin:8px 0 0 0; color:#b3b3b3; font-size:10px; letter-spacing:1.2px; text-transform:uppercase;">Modern apparel &amp; everyday style</p>',
+'        </td></tr>',
+'      </table>',
+'    </td></tr>',
+'  </table>',
+'</body>',
+'</html>'
+  ].join('\n');
+}
+
 // The address the shop is reached at. It receives every order notification
 // and every complaint, and it is the reply-to address on the emails we send
 // out to customers, so a customer's "Reply" lands in the right inbox.
@@ -846,7 +990,7 @@ app.post('/api/orders', writeLimiter, async function (req, res) {
   try {
     await storage.append(ORDERS_KEY, order);
     // Both emails must finish before the response goes out. On a serverless
-    // host (Netlify) the function is frozen as soon as it responds, so a
+    // host (Vercel) the function is frozen as soon as it responds, so a
     // fire-and-forget send would never reach the mail provider. A failure
     // here still never affects the order itself.
     // The store (NOTIFY_EMAIL) and the customer both get a copy, and the
@@ -880,17 +1024,90 @@ app.post('/api/orders', writeLimiter, async function (req, res) {
   }
 });
 
+// The customer-facing single-order view. The tracking page only needs the
+// status, items, totals and a name/area label — never the customer's email,
+// phone or street address. Hiding those keeps this public lookup from leaking
+// contact details, and makes the cancel identity check below meaningful.
+function publicOrderView(order) {
+  const c = order.customer || {};
+  return Object.assign({}, order, {
+    customer: { name: c.name || '', area: c.area || '' }
+  });
+}
+
 // Look up one order by its id (e.g. "EVR-20260830-9F3A1C"). Public so a
-// customer can check their order status from a confirmation page later.
+// customer can check their order status from the tracking page. Contact
+// details are stripped — see publicOrderView.
 app.get('/api/orders/:id', function (req, res) {
   storage.read(ORDERS_KEY).then(function (orders) {
     const order = orders.find(function (o) { return o.orderId === req.params.id; });
     if (!order) return res.status(404).json({ error: 'Order not found.' });
-    res.json(order);
+    res.json(publicOrderView(order));
   }).catch(function (err) {
     console.error('Error reading orders:', err);
     res.status(500).json({ error: 'Could not read orders.' });
   });
+});
+
+// ---------------------------------------------------------------------------
+// Customer accounts — shopper sign-in via Supabase Auth (lib/customer-auth).
+// ---------------------------------------------------------------------------
+
+// Public bootstrap for account.html: the Supabase URL + anon key the browser
+// needs to run supabase-js. The anon key is safe to expose — RLS is locked on
+// every table, so it only lets the browser talk to Supabase Auth.
+app.get('/api/account/config', function (req, res) {
+  res.set('Cache-Control', 'public, max-age=300');
+  res.json(customerAuth.publicConfig());
+});
+
+// The signed-in customer's own orders, newest first. The Bearer token is
+// verified against Supabase Auth and must belong to a CONFIRMED email; orders
+// are then matched by that email using the service key. No token, no orders.
+function accountOrderView(order) {
+  return {
+    orderId: order.orderId,
+    status: order.status,
+    receivedAt: order.receivedAt,
+    statusUpdatedAt: order.statusUpdatedAt,
+    items: (order.items || []).map(function (it) {
+      return { id: it.id, name: it.name, qty: it.qty, price: it.price };
+    }),
+    payment: order.payment || { method: 'cod', methodLabel: 'Cash on Delivery' },
+    totals: order.totals || {}
+  };
+}
+
+app.get('/api/account/orders', accountLimiter, async function (req, res) {
+  res.set('Cache-Control', 'private, no-store');
+  const header = (req.get('authorization') || '').trim();
+  const match = /^Bearer\s+(.+)$/i.exec(header);
+  if (!match) return res.status(401).json({ error: 'Sign in to see your orders.' });
+
+  let user;
+  try {
+    user = await customerAuth.getUser(match[1]);
+  } catch (err) {
+    return res.status(err.status || 401).json({ error: err.message || 'Please sign in again.' });
+  }
+
+  const email = customerAuth.confirmedEmail(user);
+  if (!email) {
+    return res.status(403).json({ error: 'Please confirm your email address, then sign in again to see your orders.' });
+  }
+
+  try {
+    const orders = await storage.read(ORDERS_KEY);
+    const mine = orders.filter(function (o) {
+      return o.customer && String(o.customer.email || '').trim().toLowerCase() === email;
+    }).sort(function (a, b) {
+      return String(b.receivedAt || '').localeCompare(String(a.receivedAt || ''));
+    });
+    res.json({ email: email, orders: mine.map(accountOrderView) });
+  } catch (err) {
+    console.error('Error reading account orders:', err);
+    res.status(500).json({ error: 'Could not load your orders. Please try again.' });
+  }
 });
 
 // List all orders. Admin-only: the response includes every customer's name,
@@ -944,6 +1161,101 @@ app.patch('/api/orders/:id/status', sameOrigin, requireAdmin, requireManager, wr
     console.error('Error updating order status:', err);
     res.status(500).json({ error: 'Could not update order status.' });
   });
+});
+
+// Normalize a phone number to its subscriber digits so "0334-3745379",
+// "+92 334 3745379" and "923343745379" all compare equal.
+function phoneKey(v) {
+  let d = String(v == null ? '' : v).replace(/\D/g, '');
+  if (d.length > 10 && d.startsWith('92')) d = d.slice(2);
+  else if (d.startsWith('0')) d = d.slice(1);
+  return d;
+}
+
+// Customer self-service cancellation from the tracking page. A customer may
+// cancel their OWN order, but only while it is still 'received' or 'preparing'.
+// Once it is 'out_for_delivery' (or delivered / already cancelled) it is locked.
+// Identity is checked against the email or phone on the order, so knowing the
+// order id alone is not enough. The status guard runs inside the storage
+// mutator so a concurrent admin status change can't be overwritten.
+app.post('/api/orders/:id/cancel', writeLimiter, async function (req, res) {
+  const id = req.params.id;
+  const body = req.body || {};
+  const email = String(body.email == null ? '' : body.email).trim().toLowerCase();
+  const phone = String(body.phone == null ? '' : body.phone).trim();
+
+  if (!email && !phone) {
+    return res.status(400).json({ error: 'Enter the email or phone number used on the order to cancel it.' });
+  }
+  if (email && !validation.isEmail(email)) {
+    return res.status(400).json({ error: 'That email address doesn\'t look right. Use the one from your order confirmation.' });
+  }
+  if (phone && !validation.isPhone(phone)) {
+    return res.status(400).json({ error: 'That phone number doesn\'t look right. Use the one from your order confirmation.' });
+  }
+  const wantedPhone = phoneKey(phone);
+
+  let outcome = null;
+  try {
+    await storage.update(ORDERS_KEY, function (orders) {
+      const idx = orders.findIndex(function (o) { return o.orderId === id; });
+      if (idx === -1) { outcome = { kind: 'not-found' }; return orders; }
+      const order = orders[idx];
+      const c = order.customer || {};
+      const emailOk = email && String(c.email || '').toLowerCase() === email;
+      const phoneOk = wantedPhone && phoneKey(c.phone) === wantedPhone;
+      if (!emailOk && !phoneOk) { outcome = { kind: 'mismatch' }; return orders; }
+      if (order.status !== 'received' && order.status !== 'preparing') {
+        outcome = { kind: 'locked', status: order.status };
+        return orders;
+      }
+      order.status = 'cancelled';
+      order.statusUpdatedAt = new Date().toISOString();
+      outcome = { kind: 'cancelled', order: order };
+      return orders;
+    });
+  } catch (err) {
+    console.error('Error cancelling order:', err);
+    return res.status(500).json({ error: 'Could not cancel your order right now. Please try again.' });
+  }
+
+  if (!outcome || outcome.kind === 'not-found') {
+    return res.status(404).json({ error: 'Order not found.' });
+  }
+  if (outcome.kind === 'mismatch') {
+    return res.status(403).json({ error: 'That email or phone doesn\'t match this order. Use the details from your order confirmation.' });
+  }
+  if (outcome.kind === 'locked') {
+    const msg = outcome.status === 'out_for_delivery'
+      ? 'This order is already out for delivery, so it can no longer be cancelled. Contact us if you need help.'
+      : outcome.status === 'delivered'
+        ? 'This order has already been delivered, so it can\'t be cancelled.'
+        : outcome.status === 'cancelled'
+          ? 'This order is already cancelled.'
+          : 'This order can no longer be cancelled.';
+    return res.status(409).json({ error: msg, status: outcome.status });
+  }
+
+  const order = outcome.order;
+  // Awaited on purpose: serverless hosts freeze the function once it responds,
+  // so both notices must finish first. A failed email never undoes the cancel.
+  await Promise.allSettled([
+    sendNotificationEmail(
+      'Order cancelled by customer — ' + order.orderId,
+      buildCancelEmailText(order, true),
+      buildCancelEmailHtml(order, publicBaseFromReq(req), true),
+      { replyTo: order.customer.email }
+    ),
+    sendEmailTo(
+      order.customer.email,
+      'Your Evora order #' + order.orderId + ' has been cancelled',
+      buildCancelEmailText(order, false),
+      buildCancelEmailHtml(order, publicBaseFromReq(req), false),
+      { replyTo: STORE_EMAIL() }
+    )
+  ]);
+
+  res.json({ success: true, orderId: order.orderId, status: order.status });
 });
 
 // ---------------------------------------------------------------------------

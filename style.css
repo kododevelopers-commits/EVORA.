@@ -334,6 +334,76 @@ button {
   background-color: #f0f0f0;
 }
 
+/* Account button pinned to the top of the side panel */
+.cp-account {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 15px;
+  margin: 2px 2px 12px;
+  border-radius: 14px;
+  text-decoration: none;
+  color: #fff;
+  background: linear-gradient(135deg, #1a1a1a 0%, #333 100%);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.18);
+  transition: transform 0.16s ease, box-shadow 0.16s ease;
+}
+
+.cp-account:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 10px 22px rgba(0, 0, 0, 0.24);
+}
+
+.cp-account-ico {
+  width: 38px;
+  height: 38px;
+  flex: none;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: rgba(255, 255, 255, 0.14);
+}
+
+.cp-account-ico svg {
+  width: 20px;
+  height: 20px;
+}
+
+.cp-account-text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  line-height: 1.25;
+}
+
+.cp-account-text strong {
+  font-size: 15px;
+  font-weight: 700;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.cp-account-sub {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.72);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.cp-account-arrow {
+  flex: none;
+  font-size: 22px;
+  line-height: 1;
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.cp-account.signed-in {
+  background: linear-gradient(135deg, #14532d 0%, #1f7a44 100%);
+}
+
 .location-dropdown {
   display: none;
   position: absolute;

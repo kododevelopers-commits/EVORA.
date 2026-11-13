@@ -1,9 +1,9 @@
 // ============================================================================
-// build-netlify.js — assemble the static site for Netlify
+// build-site.js — assemble the static site for deployment
 // ----------------------------------------------------------------------------
-// Netlify publishes dist/. It gets the storefront files only: the backend
+// Vercel publishes dist/. It gets the storefront files only: the backend
 // source, tools and docs stay out of the public site. The API runs separately
-// from netlify/functions/api.js.
+// as a Vercel Function (api/index.js wraps assets/server/server.js).
 // ============================================================================
 
 const fs = require('fs');
@@ -18,11 +18,13 @@ const FILES = [
   'product.html',
   'checkout.html',
   'track.html',
+  'account.html',
   'contact.html',
   'about.html',
   'admin.html',
   'style.css',
   'script.js',
+  'account.js',
   'admin.js',
   'catalog.js',
   'locations.js',

@@ -10,7 +10,7 @@
 // artwork.
 //
 // Where that PNG comes from depends on where the backend runs:
-//   * PUBLIC_BASE_URL set (Netlify)  -> <base>/assets/evora-logo.png
+//   * PUBLIC_BASE_URL set (Vercel)   -> <base>/assets/evora-logo.png
 //   * no PUBLIC_BASE_URL (localhost) -> a base64 data: URL, no host needed
 //
 // The hosted URL is the one that works in Gmail: Gmail already blocks most
@@ -57,7 +57,7 @@ function load() {
     { name: 'logo.png',        mime: 'image/png' },
     { name: 'logo.jpg',        mime: 'image/jpeg' }
   ];
-  // Serverless bundles (Netlify) copy included files next to the handler and
+  // Serverless bundles (Vercel) copy included files next to the handler and
   // run with that folder as the working directory, so the repo-relative path
   // does not exist there. Try both.
   const roots = [
@@ -87,10 +87,11 @@ function load() {
 
 const loaded = load();
 
-// The deployed site's address, when we know it. PUBLIC_BASE_URL wins; Netlify
-// also injects URL and DEPLOY_PRIME_URL into every function, so production
-// gets the right host even if that variable was never added. Read at render
-// time so a value injected by the host is picked up after this module loaded.
+// The deployed site's address, when we know it. PUBLIC_BASE_URL wins; Vercel
+// injects VERCEL_URL into every function, so production gets a host even if
+// that variable was never added (URL / DEPLOY_PRIME_URL are kept as legacy
+// fallbacks). Read at render time so a host-injected value is picked up after
+// this module loaded.
 function publicBase() {
   const raw = (process.env.PUBLIC_BASE_URL ||
     process.env.URL ||

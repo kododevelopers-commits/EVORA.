@@ -154,7 +154,7 @@ function createTransport() {
 // ---------------------------------------------------------------------------
 // Brevo over HTTPS (the API, not SMTP)
 // ---------------------------------------------------------------------------
-// Many hosts — Render's free tier among them — block outbound SMTP ports
+// Many hosts — Vercel among them — block outbound SMTP ports
 // (25, 465, 587). Brevo's HTTP API uses port 443 like any web request, so it
 // works everywhere. It sends the same 300 emails/day on the free plan.
 //

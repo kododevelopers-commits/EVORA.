@@ -182,6 +182,52 @@
     if (e.key === 'Escape') closeCategoriesPanel();
   });
 
+  // ---------- Account button (top of the side panel) ----------
+  // Links to account.html (Google + email/password sign-in, Orders tab). Built
+  // here so it appears on every page that has the panel, independently of the
+  // catalogue load. The signed-in label is best-effort from the Supabase
+  // session in localStorage — no network call and no supabase-js needed here.
+  function readAccountEmail() {
+    var ls = window.localStorage;
+    for (var i = 0; i < ls.length; i++) {
+      var key = ls.key(i);
+      if (!/^sb-.*-auth-token$/.test(key)) continue;
+      var raw = ls.getItem(key);
+      if (!raw) continue;
+      var sess = null;
+      try { sess = JSON.parse(raw); }
+      catch (e) {
+        try { sess = JSON.parse(decodeURIComponent(escape(window.atob(raw)))); } catch (e2) { sess = null; }
+      }
+      var user = sess && (sess.user || (sess.currentSession && sess.currentSession.user));
+      if (user && user.email) return String(user.email);
+    }
+    return '';
+  }
+
+  function renderAccountButton() {
+    var scroll = document.getElementById('categoriesPanelScroll');
+    if (!scroll || document.getElementById('cpAccount')) return;
+    var link = document.createElement('a');
+    link.href = 'account.html';
+    link.className = 'cp-account';
+    link.id = 'cpAccount';
+    link.innerHTML =
+      '<span class="cp-account-ico" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></span>' +
+      '<span class="cp-account-text"><strong id="cpAccountTitle">Account</strong><span class="cp-account-sub" id="cpAccountSub">Sign in &middot; Your orders</span></span>' +
+      '<span class="cp-account-arrow" aria-hidden="true">&rsaquo;</span>';
+    scroll.insertBefore(link, scroll.firstChild);
+    try {
+      var email = readAccountEmail();
+      if (email) {
+        document.getElementById('cpAccountTitle').textContent = 'Hi, ' + email.split('@')[0];
+        document.getElementById('cpAccountSub').textContent = 'View your orders';
+        link.classList.add('signed-in');
+      }
+    } catch (e) { /* keep the generic signed-out label */ }
+  }
+  renderAccountButton();
+
   // ---------- Deals / category slider ----------
   var track = document.getElementById('dealsTrack');
   var prevBtn = document.getElementById('dealsPrev');
@@ -490,8 +536,8 @@
         })
         .catch(function (err) {
           var msg = (err && err.message === 'backend-not-found')
-            ? "The Evora backend isn't running, so we can't send your message yet. " +
-              'Start it by double-clicking start-evora.cmd in the project folder, then try again.'
+            ? "We couldn't reach the Evora order service, so we can't send your message yet. " +
+              'Please check your connection and try again in a moment.'
             : (err.message || "We couldn't send your message — please try again.");
           showContactError(msg);
         })
@@ -1153,8 +1199,8 @@
 
           var hint;
           if (err && err.message === 'backend-not-found') {
-            hint = "The Evora backend isn't running, so we can't send your order yet. " +
-                   'Start it by double-clicking start-evora.cmd in the project folder, then try again.';
+            hint = "We couldn't reach the Evora order service, so we can't send your order yet. " +
+                   'Please check your connection and try again in a moment.';
           } else if (err instanceof TypeError) {
             // fetch() throws TypeError for network failures
             hint = "We couldn't reach our order server — please check your connection and try again in a moment.";

@@ -1783,8 +1783,8 @@ button {
 }
 
 .popular-title {
-  font-family: 'Aurora', 'Arial Black', 'Helvetica Neue', Helvetica, Arial, sans-serif;
-  font-weight: 400;
+  font-family: 'Playfair Display', Georgia, 'Times New Roman', serif;
+  font-weight: 600;
   font-size: 84px;
   line-height: 1.05;
   letter-spacing: 0.5px;

@@ -606,10 +606,10 @@ button {
   height: 22px;
 }
 .account-btn.signed-in {
-  background-color: #1f7a44;
+  background-color: transparent;
 }
 .account-btn.signed-in:hover {
-  background-color: #165a35;
+  background-color: rgba(26, 26, 26, 0.1);
 }
 
 .badge {
@@ -2374,11 +2374,11 @@ button {
   }
 
   .account-btn.signed-in {
-    background-color: #1a1a1a;
+    background-color: transparent;
   }
 
   .account-btn.signed-in:hover {
-    background-color: rgba(26, 26, 26, 0.85);
+    background-color: rgba(26, 26, 26, 0.1);
   }
 
   .location-text strong {
@@ -2562,11 +2562,11 @@ button {
   }
 
   .account-btn.signed-in {
-    background-color: #1a1a1a;
+    background-color: transparent;
   }
 
   .account-btn.signed-in:hover {
-    background-color: rgba(26, 26, 26, 0.85);
+    background-color: rgba(26, 26, 26, 0.1);
   }
 
   .section-title {
@@ -4034,11 +4034,12 @@ button {
   }
 
   .search-bar-section {
-    padding: 16px 10px 4px;
+    padding: 16px 2px 4px;
   }
 
   .search-bar {
     padding: 3px 3px 3px 14px !important;
+    margin: 0 auto 0 -16px !important;
   }
 
   .search-submit-btn {

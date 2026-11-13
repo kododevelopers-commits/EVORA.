@@ -593,6 +593,25 @@ button {
   height: 18px;
 }
 
+/* Account button — same size as cart, neutral hover so the stroke stays visible */
+.account-btn {
+  width: 46px;
+  height: 46px;
+}
+.account-btn:hover {
+  background-color: rgba(26, 26, 26, 0.1);
+}
+.account-btn-ico {
+  width: 22px;
+  height: 22px;
+}
+.account-btn.signed-in {
+  background-color: #1f7a44;
+}
+.account-btn.signed-in:hover {
+  background-color: #165a35;
+}
+
 .badge {
   position: absolute;
   top: -4px;

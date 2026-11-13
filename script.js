@@ -237,6 +237,21 @@
   }
   renderAccountButton();
 
+  // Navbar account button — same signed-in hint as the side-panel link.
+  function syncNavAccountButton() {
+    var btn = document.getElementById('navAccountBtn');
+    if (!btn) return;
+    var email = readAccountEmail();
+    if (email) {
+      btn.classList.add('signed-in');
+      btn.title = 'Account · ' + email;
+    } else {
+      btn.classList.remove('signed-in');
+      btn.title = 'Account';
+    }
+  }
+  syncNavAccountButton();
+
   // ---------- Deals / category slider ----------
   var track = document.getElementById('dealsTrack');
   var prevBtn = document.getElementById('dealsPrev');

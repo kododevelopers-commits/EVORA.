@@ -2352,6 +2352,7 @@ button {
 @media screen and (max-width: 767px) {
   .topbar-inner {
     padding: 6px 8px;
+    max-width: calc(100% - 28px);
     gap: 8px;
     min-height: 58px;
     margin: 0 auto;
@@ -2480,6 +2481,7 @@ button {
 @media screen and (max-width: 479px) {
   .topbar-inner {
     padding: 4px 6px;
+    max-width: calc(100% - 20px);
     gap: 6px;
     min-height: 54px;
     margin: 0 auto;
@@ -4034,7 +4036,7 @@ button {
   }
 
   .search-bar-section {
-    padding: 16px 2px 4px;
+    padding: 16px 14px 4px;
   }
 
   .search-bar {

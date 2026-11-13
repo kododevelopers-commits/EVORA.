@@ -164,6 +164,15 @@
       item.setAttribute('data-category', cat.id);
       categoriesPanelList.appendChild(item);
     });
+    // Help & Support link (was the complaint pill in the navbar)
+    var helpLink = document.createElement('a');
+    helpLink.href = 'contact.html';
+    helpLink.className = 'categories-panel-link';
+    helpLink.textContent = 'Help & Support';
+    helpLink.style.marginTop = '8px';
+    helpLink.style.borderTop = '1px solid #f0f0f0';
+    helpLink.style.paddingTop = '16px';
+    categoriesPanelList.appendChild(helpLink);
   }
   }
 
@@ -1255,6 +1264,25 @@
   var menuSearchInput = document.getElementById('menuSearchInput');
   var searchBarSection = document.querySelector('.search-bar-section') ||
     (menuSearchInput ? menuSearchInput.closest('section') : null);
+
+  // ---------- Navbar search button (slide to search bar) ----------
+  var navSearchBtn = document.getElementById('navSearchBtn');
+  if (navSearchBtn) {
+    navSearchBtn.addEventListener('click', function () {
+      if (!menuSearchInput || !searchBarSection) {
+        // Pages without their own search field send the visitor to the menu.
+        window.location.href = 'menu.html';
+      } else {
+        var rect = searchBarSection.getBoundingClientRect();
+        var targetY = window.scrollY + rect.top - 80;
+        window.scrollTo({ top: Math.max(targetY, 0), behavior: scrollBehavior() });
+        setTimeout(function () {
+          menuSearchInput.focus({ preventScroll: true });
+          menuSearchInput.select();
+        }, 380);
+      }
+    });
+  }
 
   function syncFloatingVisibility() {
     var show = window.scrollY > 240;

@@ -2358,11 +2358,11 @@ button {
   }
 
   .nav-logo {
-    width: 160px;
+    width: 130px;
   }
 
   .nav-logo-img {
-    height: 46px !important;
+    height: 40px !important;
   }
 
   .topbar-actions {
@@ -2371,6 +2371,14 @@ button {
 
   .nav-logo {
     font-size: 18px;
+  }
+
+  .account-btn.signed-in {
+    background-color: #1a1a1a;
+  }
+
+  .account-btn.signed-in:hover {
+    background-color: rgba(26, 26, 26, 0.85);
   }
 
   .location-text strong {
@@ -2478,7 +2486,7 @@ button {
   }
 
   .nav-logo {
-    width: 132px;
+    width: 130px;
   }
 
   .nav-logo-img {
@@ -2546,6 +2554,19 @@ button {
 
   .nav-logo {
     font-size: 15px;
+  }
+
+  .account-btn {
+    width: 46px !important;
+    height: 46px !important;
+  }
+
+  .account-btn.signed-in {
+    background-color: #1a1a1a;
+  }
+
+  .account-btn.signed-in:hover {
+    background-color: rgba(26, 26, 26, 0.85);
   }
 
   .section-title {
@@ -4013,7 +4034,7 @@ button {
   }
 
   .search-bar-section {
-    padding: 16px 16px 4px;
+    padding: 16px 10px 4px;
   }
 
   .search-bar {

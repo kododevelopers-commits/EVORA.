@@ -155,7 +155,7 @@ button {
 .navbar-left {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 0;
   justify-self: start;
 }
 

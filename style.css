@@ -580,6 +580,19 @@ button {
   filter: brightness(0) invert(1);
 }
 
+/* Search button — smaller icon, no black hover that hides the stroke */
+.search-btn {
+  width: 38px;
+  height: 38px;
+}
+.search-btn:hover {
+  background-color: rgba(26, 26, 26, 0.08);
+}
+.search-btn-ico {
+  width: 18px;
+  height: 18px;
+}
+
 .badge {
   position: absolute;
   top: -4px;

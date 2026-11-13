@@ -1785,14 +1785,14 @@ button {
 .popular-title {
   font-family: 'Playfair Display', Georgia, 'Times New Roman', serif;
   font-weight: 600;
-  font-size: 84px;
+  font-size: 48px;
   line-height: 1.05;
-  letter-spacing: 0.5px;
+  letter-spacing: 0.3px;
   text-transform: none;
-  margin: 8px 0 16px;
+  margin: 0;
   color: #1a1a1a;
   font-style: normal;
-  text-align: center;
+  text-align: left;
 }
 
 .popular-title em {

@@ -118,8 +118,7 @@ so they never ship to the public `dist/`.
 - **Customer cancellation** — on the track page, a customer can cancel their
   own order **only while `received` or `preparing`**, confirming with the
   order's email or phone. Once `out_for_delivery`/`delivered`/`cancelled`, it
-  is locked. Enforced server-side. *(Built + verified locally; see §9 — not
-  yet deployed.)*
+  is locked. Enforced server-side. *(Deployed.)*
 - **Customer accounts** — an **Account** button in the left categories panel
   opens `account.html`: sign in / sign up with **Google** or **email +
   password** (Supabase Auth in the browser). The **Orders** tab auto-lists
@@ -128,8 +127,8 @@ so they never ship to the public `dist/`.
   orders by email with the service key — the DB stays locked (RLS denies
   anon/authenticated). Off until `SUPABASE_ANON_KEY` is set (page shows a
   "coming soon" notice). **Apple sign-in omitted** (needs a paid Apple
-  Developer account). *(Built + verified locally; see §9 — not yet deployed.
-  Owner setup: `ACCOUNTS-SETUP.md`.)*
+  Developer account). *(Deployed; owner setup still required — see
+  `ACCOUNTS-SETUP.md`.)*
 - **Admin dashboard** — two-step sign-in (staff email + `ADMIN_API_KEY` →
   emailed one-time code → HttpOnly session). Roles: **owner** (everything +
   staff + email health), **admin** (orders + products), **viewer** (read-only,
@@ -271,31 +270,12 @@ publishes `dist/` + the Function. Then verify on the live site.
 
 ## 9. Current state (as of 2026-11-13)
 
-- **Live / last deployed commit:** `e2c7ac0` — the Pakistan location picker.
-  Everything in §4 except customer cancellation **and customer accounts** is
-  live.
-- **Uncommitted working tree** (a large, coherent changeset, NOT yet pushed):
-  - **Cloud-only cleanup:** deleted `DEPLOY.md`, `netlify.toml`,
-    `netlify/functions/api.js`, `render.yaml`, `start-evora.cmd`, and the
-    `migrate-*.js` scripts; renamed `tools/build-netlify.js` →
-    `tools/build-site.js`; removed the `serverless-http` dependency; updated
-    the "backend isn't running" banners in `api-client.js` / `script.js` to
-    cloud wording.
-  - **Customer cancellation feature:** `server.js` (public
-    `POST /api/orders/:id/cancel` + sanitized GET + cancel emails),
-    `track.html` (cancel UI), `test-dashboard.js` (cancel scenarios).
-  - **Customer accounts feature:** `lib/customer-auth.js` (token verify +
-    public config + confirmed-email gate), `server.js`
-    (`GET /api/account/config` + `GET /api/account/orders`, `accountLimiter`,
-    `Authorization` in CORS), `account.html` + `account.js` (sign in/up,
-    Orders/Profile tabs, recovery), `script.js` + `style.css` (Account button
-    in the categories panel), `tools/build-site.js` (+`account.html`/
-    `account.js` → 20 files), `.env.example` (`SUPABASE_ANON_KEY`),
-    `test-dashboard.js` (6 account scenarios).
-  - **Docs:** both READMEs rewritten for Vercel/Supabase/cloud-only + accounts;
-    new `ACCOUNTS-SETUP.md` (owner setup guide); stale Netlify/Render comments
-    fixed across `brand.js`, `mailer.js`, `storage.js`, `supabase-schema.sql`,
-    `.env.example`; this `OVERVIEW.md`.
+- **Live / last deployed commit:** `03e9605` — deal carousel `<picture>`
+  mobile/desktop swap. Everything in §4 is live, including customer
+  cancellation and customer accounts.
+- **Working tree:** clean. `main` is even with `origin/main` (0 ahead / 0
+  behind). `dist/` is rebuilt from root by `npm run build` and is gitignored;
+  Vercel rebuilds it on every push.
 - **Verification done:** all **92** test scenarios pass; `npm run build`
   succeeds (20 files). The cancel flow was verified end-to-end in the browser
   on the fixture preview (received→cancel button; wrong identity→403; correct
@@ -305,16 +285,12 @@ publishes `dist/` + the Function. Then verify on the live site.
   list; order card → `track.html`; unconfirmed-email gate; single orders fetch
   on OAuth redirect; mobile layout at 548px with no overflow). No real data or
   email was touched (preview is in-memory).
-- **Next step:** commit the changeset and push to `main` to ship cancellation
-  + accounts + cleanup live — **after confirming with the owner**. Accounts
-  also need the one-time dashboard setup in `ACCOUNTS-SETUP.md` (Email+Google
-  providers, redirect URLs, Brevo SMTP, `SUPABASE_ANON_KEY` in Vercel) before
-  they work for real customers; until then the page shows "coming soon". Then
-  re-verify on https://evora-server.vercel.app.
+- **Next step:** the accounts feature still needs the one-time dashboard setup
+  in `ACCOUNTS-SETUP.md` (Email+Google providers, redirect URLs, Brevo SMTP,
+  `SUPABASE_ANON_KEY` in Vercel) before it works for real customers; until then
+  the page shows "coming soon". Re-verify on https://evora-server.vercel.app
+  after that setup.
 
 ### Quick task tracker
 
-The work was tracked as tasks #1–#40. #1–#33 and #35–#39 are complete.
-**#34** (deploy customer cancellation) and **#40** (setup guide + docs) are the
-open items. #40's docs are written; both #34 and the accounts feature are built
-and verified, awaiting the owner's go-ahead to push.
+The work was tracked as tasks #1–#40. #1–#40 are complete.

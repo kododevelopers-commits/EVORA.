@@ -22,6 +22,9 @@
   var editingProductVersion = null;
   var savingProduct = false;
   var editorMode = 'edit';
+  var siteContent = {};
+  var siteContentVersion = 0;
+  var savingChanges = false;
 
   function canEdit() { return !!identity && ['owner', 'admin'].includes(identity.role); }
   function isOwner() { return !!identity && identity.role === 'owner'; }
@@ -66,7 +69,12 @@
     'productsTab', 'productsBody', 'productSearch', 'productsRefresh', 'addProduct', 'productDialog', 'productForm',
     'productName', 'productPrice', 'productOriginalPrice', 'productCategory', 'productDescription', 'productImage', 'productHoverImage',
     'productImageFile', 'productHoverFile', 'productAvailable', 'productImagePreview', 'productHoverPreview',
-    'productEditorTitle', 'productIdText', 'productError', 'saveProduct', 'cancelProduct'
+    'productEditorTitle', 'productIdText', 'productError', 'saveProduct', 'cancelProduct',
+    'changesTab', 'panelChanges', 'changesRefresh', 'carouselRows', 'addCarouselSlide',
+    'storyEyebrow', 'storyTitle', 'storyEmphasis', 'storyDesc', 'storyPoints', 'storyBtn1Label', 'storyBtn1Href', 'storyBtn2Label', 'storyBtn2Href',
+    'footerTagline', 'footerContactHeading', 'footerPhone', 'footerPhoneHref', 'footerAddress', 'footerFollowHeading', 'footerFbHref', 'footerIgHref',
+    'footerHelpHeading', 'footerLinks', 'addFooterLink', 'footerPoweredText', 'footerPoweredHref', 'footerBottomLinks', 'addFooterBottomLink',
+    'saveChanges', 'changesVersion', 'changesError'
   ].forEach(function (id) { els[id] = document.getElementById(id); });
 
   // -------- Toast --------
@@ -117,6 +125,7 @@
     els.ordersBadge.style.display = 'none';
     els.contactsBadge.style.display = 'none';
     els.emailAlert.style.display = 'none';
+    siteContent = {};
     closeProductEditor();
   }
 
@@ -170,6 +179,7 @@
     els.staffActionsHeading.hidden = !isOwner();
     els.staffForm.hidden = !isOwner();
     els.productsTab.hidden = !canEdit();
+    els.changesTab.hidden = !canEdit();
     if (!canEdit()) {
       els.emailAlert.style.display = 'none';
       closeProductEditor();
@@ -875,6 +885,304 @@
     } finally { loadingCount--; }
   }
 
+  // -------- Site Content (Changes tab) --------
+  async function loadSiteContent(checkIdentity) {
+    if (!identity || loggingOut) return;
+    try {
+      if (checkIdentity) await refreshIdentity();
+      if (!canEdit()) return;
+      var rows = await api('/api/site-content');
+      siteContent = {};
+      siteContentVersion = 0;
+
+      if (Array.isArray(rows)) {
+        rows.forEach(function (row) {
+          siteContent[row.key] = row.data;
+        });
+      }
+
+      var carousel = siteContent['carousel'] || [];
+      renderCarouselRows(Array.isArray(carousel) ? carousel : []);
+
+      var story = siteContent['our-story'] || {};
+      els.storyEyebrow.value = story.eyebrow || '';
+      els.storyTitle.value = story.title || '';
+      els.storyEmphasis.value = story.emphasis || '';
+      els.storyDesc.value = story.description || '';
+      els.storyPoints.value = Array.isArray(story.points) ? story.points.join('\n') : '';
+      var b1 = (story.buttons && story.buttons[0]) || {};
+      var b2 = (story.buttons && story.buttons[1]) || {};
+      els.storyBtn1Label.value = b1.label || '';
+      els.storyBtn1Href.value = b1.href || '';
+      els.storyBtn2Label.value = b2.label || '';
+      els.storyBtn2Href.value = b2.href || '';
+
+      var footer = siteContent['footer'] || {};
+      els.footerTagline.value = footer.tagline || '';
+      els.footerContactHeading.value = footer.contactHeading || '';
+      els.footerPhone.value = footer.phone || '';
+      els.footerPhoneHref.value = footer.phoneHref || '';
+      els.footerAddress.value = footer.address || '';
+      els.footerFollowHeading.value = footer.followHeading || '';
+      els.footerFbHref.value = footer.facebookHref || '';
+      els.footerIgHref.value = footer.instagramHref || '';
+      els.footerHelpHeading.value = footer.helpHeading || '';
+      renderFooterLinks(Array.isArray(footer.helpLinks) ? footer.helpLinks : []);
+      els.footerPoweredText.value = footer.poweredText || '';
+      els.footerPoweredHref.value = footer.poweredHref || '';
+      renderFooterBottomLinks(Array.isArray(footer.bottomLinks) ? footer.bottomLinks : []);
+
+      var maxVer = 1;
+      rows.forEach(function (r) {
+        if (r.version && r.version > maxVer) maxVer = r.version;
+      });
+      siteContentVersion = maxVer;
+      els.changesVersion.textContent = 'Version: ' + siteContentVersion;
+      els.changesError.textContent = '';
+    } catch (err) {
+      reportError(err);
+    }
+  }
+
+  function renderCarouselRows(slides) {
+    els.carouselRows.innerHTML = '';
+    slides.forEach(function (slide, idx) {
+      var div = document.createElement('div');
+      div.className = 'changes-row';
+      div.style.cssText = 'flex-direction:column; background:var(--bg-sub, #f9fafb); padding:12px; border-radius:6px; margin-bottom:8px; gap:8px;';
+      div.innerHTML =
+        '<div style="display:flex; justify-content:space-between; align-items:center;"><strong>Slide ' + (idx + 1) + '</strong><button type="button" class="ghost text-danger remove-slide" style="padding:2px 6px;">Remove</button></div>' +
+        '<div style="display:flex; gap:8px;"><label style="flex:1;">Image URL<input type="text" class="slide-image" value="' + escapeHtml(slide.image || '') + '" style="width:100%;"></label>' +
+        '<label style="flex:1;">Badge<input type="text" class="slide-badge" value="' + escapeHtml(slide.badge || '') + '" style="width:100%;"></label></div>' +
+        '<div style="display:flex; gap:8px;"><label style="flex:1;">Title<input type="text" class="slide-title" value="' + escapeHtml(slide.title || '') + '" style="width:100%;"></label>' +
+        '<label style="flex:1;">Subtitle<input type="text" class="slide-subtitle" value="' + escapeHtml(slide.subtitle || '') + '" style="width:100%;"></label></div>' +
+        '<div style="display:flex; gap:8px;"><label style="flex:1;">Button Label<input type="text" class="slide-btnlabel" value="' + escapeHtml(slide.buttonLabel || '') + '" style="width:100%;"></label>' +
+        '<label style="flex:1;">Button URL<input type="text" class="slide-btnhref" value="' + escapeHtml(slide.buttonHref || '') + '" style="width:100%;"></label></div>';
+
+      div.querySelector('.remove-slide').addEventListener('click', function () {
+        div.remove();
+      });
+      els.carouselRows.appendChild(div);
+    });
+  }
+
+  function renderFooterLinks(links) {
+    els.footerLinks.innerHTML = '';
+    links.forEach(function (link, idx) {
+      var div = document.createElement('div');
+      div.className = 'changes-row';
+      div.style.cssText = 'gap:8px; align-items:center; margin-bottom:6px;';
+      div.innerHTML =
+        '<input type="text" class="footer-link-label" placeholder="Label" value="' + escapeHtml(link.label || '') + '" style="flex:1;">' +
+        '<input type="text" class="footer-link-href" placeholder="URL" value="' + escapeHtml(link.href || '') + '" style="flex:1;">' +
+        '<button type="button" class="ghost text-danger remove-footer-link" style="padding:4px 8px;">✕</button>';
+      div.querySelector('.remove-footer-link').addEventListener('click', function () { div.remove(); });
+      els.footerLinks.appendChild(div);
+    });
+  }
+
+  function renderFooterBottomLinks(links) {
+    els.footerBottomLinks.innerHTML = '';
+    links.forEach(function (link, idx) {
+      var div = document.createElement('div');
+      div.className = 'changes-row';
+      div.style.cssText = 'gap:8px; align-items:center; margin-bottom:6px;';
+      div.innerHTML =
+        '<input type="text" class="footer-bottom-label" placeholder="Label" value="' + escapeHtml(link.label || '') + '" style="flex:1;">' +
+        '<input type="text" class="footer-bottom-href" placeholder="URL" value="' + escapeHtml(link.href || '') + '" style="flex:1;">' +
+        '<button type="button" class="ghost text-danger remove-footer-bottom" style="padding:4px 8px;">✕</button>';
+      div.querySelector('.remove-footer-bottom').addEventListener('click', function () { div.remove(); });
+      els.footerBottomLinks.appendChild(div);
+    });
+  }
+
+  function escapeHtml(str) {
+    return String(str || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  }
+
+  if (els.addCarouselSlide) {
+    els.addCarouselSlide.addEventListener('click', function () {
+      var slides = [];
+      els.carouselRows.querySelectorAll('.changes-row').forEach(function (row) {
+        slides.push({
+          image: row.querySelector('.slide-image').value,
+          badge: row.querySelector('.slide-badge').value,
+          title: row.querySelector('.slide-title').value,
+          subtitle: row.querySelector('.slide-subtitle').value,
+          buttonLabel: row.querySelector('.slide-btnlabel').value,
+          buttonHref: row.querySelector('.slide-btnhref').value
+        });
+      });
+      slides.push({ image: '', badge: '', title: '', subtitle: '', buttonLabel: '', buttonHref: '' });
+      renderCarouselRows(slides);
+    });
+  }
+
+  if (els.addFooterLink) {
+    els.addFooterLink.addEventListener('click', function () {
+      var links = [];
+      els.footerLinks.querySelectorAll('.changes-row').forEach(function (row) {
+        links.push({
+          label: row.querySelector('.footer-link-label').value,
+          href: row.querySelector('.footer-link-href').value
+        });
+      });
+      links.push({ label: '', href: '' });
+      renderFooterLinks(links);
+    });
+  }
+
+  if (els.addFooterBottomLink) {
+    els.addFooterBottomLink.addEventListener('click', function () {
+      var links = [];
+      els.footerBottomLinks.querySelectorAll('.changes-row').forEach(function (row) {
+        links.push({
+          label: row.querySelector('.footer-bottom-label').value,
+          href: row.querySelector('.footer-bottom-href').value
+        });
+      });
+      links.push({ label: '', href: '' });
+      renderFooterBottomLinks(links);
+    });
+  }
+
+  if (els.changesRefresh) {
+    els.changesRefresh.addEventListener('click', function () {
+      loadSiteContent(true);
+    });
+  }
+
+  if (els.saveChanges) {
+    els.saveChanges.addEventListener('click', async function () {
+      if (!canEdit()) return;
+      els.changesError.textContent = '';
+      els.saveChanges.textContent = 'Saving…';
+      els.saveChanges.disabled = true;
+
+      try {
+        var carouselSlides = [];
+        els.carouselRows.querySelectorAll('div').forEach(function (row) {
+          var img = row.querySelector('.slide-image');
+          if (img) {
+            carouselSlides.push({
+              image: img.value,
+              badge: row.querySelector('.slide-badge').value,
+              title: row.querySelector('.slide-title').value,
+              subtitle: row.querySelector('.slide-subtitle').value,
+              buttonLabel: row.querySelector('.slide-btnlabel').value,
+              buttonHref: row.querySelector('.slide-btnhref').value
+            });
+          }
+        });
+
+        var storyData = {
+          eyebrow: els.storyEyebrow.value,
+          title: els.storyTitle.value,
+          emphasis: els.storyEmphasis.value,
+          description: els.storyDesc.value,
+          points: els.storyPoints.value.split('\n').map(function (s) { return s.trim(); }).filter(Boolean),
+          buttons: [
+            { label: els.storyBtn1Label.value, href: els.storyBtn1Href.value },
+            { label: els.storyBtn2Label.value, href: els.storyBtn2Href.value }
+          ]
+        };
+
+        var footerHelpLinks = [];
+        els.footerLinks.querySelectorAll('.changes-row').forEach(function (row) {
+          var lbl = row.querySelector('.footer-link-label');
+          if (lbl) {
+            footerHelpLinks.push({ label: lbl.value, href: row.querySelector('.footer-link-href').value });
+          }
+        });
+
+        var footerBottomLinks = [];
+        els.footerBottomLinks.querySelectorAll('.changes-row').forEach(function (row) {
+          var lbl = row.querySelector('.footer-bottom-label');
+          if (lbl) {
+            footerBottomLinks.push({ label: lbl.value, href: row.querySelector('.footer-bottom-href').value });
+          }
+        });
+
+        var footerData = {
+          tagline: els.footerTagline.value,
+          contactHeading: els.footerContactHeading.value,
+          phone: els.footerPhone.value,
+          phoneHref: els.footerPhoneHref.value,
+          address: els.footerAddress.value,
+          followHeading: els.footerFollowHeading.value,
+          facebookHref: els.footerFbHref.value,
+          instagramHref: els.footerIgHref.value,
+          helpHeading: els.footerHelpHeading.value,
+          helpLinks: footerHelpLinks,
+          poweredText: els.footerPoweredText.value,
+          poweredHref: els.footerPoweredHref.value,
+          bottomLinks: footerBottomLinks
+        };
+
+        var keysToSave = [
+          { key: 'carousel', data: carouselSlides },
+          { key: 'our-story', data: storyData },
+          { key: 'footer', data: footerData }
+        ];
+
+        for (var i = 0; i < keysToSave.length; i++) {
+          var item = keysToSave[i];
+          var existingVersion = siteContentVersion || 1;
+          try {
+            await api('/api/site-content/' + item.key, {
+              method: 'PATCH',
+              body: {
+                version: existingVersion,
+                data: item.data
+              }
+            });
+          } catch (err) {
+            if (err.status === 404) {
+              await api('/api/site-content', {
+                method: 'POST',
+                body: {
+                  key: item.key,
+                  version: 1,
+                  data: item.data
+                }
+              });
+            } else {
+              throw err;
+            }
+          }
+        }
+
+        toast('Changes saved successfully!', 'success');
+        await loadSiteContent(true);
+      } catch (err) {
+        els.changesError.textContent = err.message || 'Failed to save changes.';
+      } finally {
+        els.saveChanges.textContent = 'Save changes';
+        els.saveChanges.disabled = false;
+      }
+    });
+  }
+
+  async function loadProducts(checkIdentity, automatic) {
+    if (!identity || loggingOut) return;
+    loadingCount++;
+    var ticket;
+    try {
+      if (checkIdentity) await refreshIdentity();
+      if (!canEdit()) return;
+      ticket = ++productRequest;
+      var version = sessionVersion;
+      var result = await api('/api/admin/products');
+      if (version !== sessionVersion || ticket !== productRequest || !canEdit() || (automatic && isEditing())) return;
+      if (!result || !Array.isArray(result.items) || !Array.isArray(result.categories)) throw new Error('Invalid product list returned by the server.');
+      allProducts = result.items;
+      categories = result.categories;
+      renderProducts();
+    } catch (err) {
+      if (ticket === undefined || ticket === productRequest) reportError(err);
+    } finally { loadingCount--; }
+  }
+
   async function loadAll(automatic) {
     if (!identity || loggingOut) return;
     loadingCount++;
@@ -912,16 +1220,17 @@
   }
 
   function switchTab(which) {
-    if (!['orders', 'contacts', 'staff', 'products'].includes(which) || (which === 'products' && !canEdit())) return;
+    if (!['orders', 'contacts', 'staff', 'products', 'changes'].includes(which) || (which === 'products' && !canEdit()) || (which === 'changes' && !canEdit())) return;
     activeTab = which;
     document.querySelectorAll('.tab').forEach(function (tab) {
       var selected = tab.getAttribute('data-tab') === which;
       tab.classList.toggle('active', selected);
       tab.setAttribute('aria-pressed', String(selected));
     });
-    ['orders', 'contacts', 'staff', 'products'].forEach(function (name) {
+    ['orders', 'contacts', 'staff', 'products', 'changes'].forEach(function (name) {
       document.getElementById('panel-' + name).style.display = which === name ? '' : 'none';
     });
+    if (which === 'changes') loadSiteContent(true);
   }
 
   els.statusFilter.addEventListener('change', renderOrders);

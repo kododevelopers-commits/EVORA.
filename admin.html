@@ -439,6 +439,12 @@
     .section-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 16px; }
     .section-head h2 { margin: 0; font-size: 20px; }
     .section-head p { margin: 4px 0 0; color: #6b7280; }
+    .changes-sub { background: #fff; border: 1px solid #eee; border-radius: 14px; padding: 16px 18px; margin-bottom: 16px; }
+    .changes-sub h3 { margin: 0 0 12px; font-size: 16px; }
+    .changes-row { display: flex; gap: 8px; align-items: center; margin-bottom: 8px; flex-wrap: wrap; }
+    .changes-row input { flex: 1; min-width: 160px; padding: 8px 11px; border: 1px solid #dcdcdc; border-radius: 8px; font-size: 13px; font-family: inherit; }
+    .changes-row button { flex: 0 0 auto; padding: 6px 13px; background: #1a1a1a; color: #fff; border: 0; border-radius: 999px; font-size: 12px; font-weight: 600; cursor: pointer; }
+    .changes-row button.ghost { background: #fff; color: #1a1a1a; border: 1px solid #dcdcdc; }
     .staff-form { background: #fff; padding: 18px; border: 1px solid #ececec; border-radius: 16px; margin-bottom: 20px; }
     .staff-form label { display: grid; gap: 4px; font-size: 12px; }
     .role-pill { background: #f1f1f1; border-radius: 999px; padding: 4px 10px; font-size: 12px; text-transform: capitalize; display: inline-block; }
@@ -538,6 +544,7 @@
       <button class="tab" data-tab="contacts">Contact messages <span class="badge" id="contactsBadge" style="display:none;">0</span></button>
       <button class="tab" data-tab="staff">Staff</button>
       <button class="tab" data-tab="products" id="productsTab" hidden>Products</button>
+      <button class="tab" data-tab="changes">Changes</button>
     </div>
 
     <!-- ORDERS PANEL -->
@@ -610,6 +617,48 @@
       <div class="section-head"><div><h2>Products</h2><p>Saved changes appear on the storefront on its next load.</p></div><div class="toolbar"><button id="addProduct" type="button">+ Add product</button><button id="productsRefresh" type="button">Refresh</button></div></div>
       <div class="toolbar"><input type="search" id="productSearch" aria-label="Search products" placeholder="Search products…"></div>
       <div class="table-wrap"><table><thead><tr><th>Image</th><th>Product</th><th>Category</th><th>Price</th><th>Visibility</th><th>Edit</th></tr></thead><tbody id="productsBody"></tbody></table></div>
+    </section>
+    <section id="panel-changes" style="display:none;">
+      <div class="section-head"><div><h2>Changes</h2><p>Edit the carousel, Our Story and footer. Saved changes appear on the storefront on its next load.</p></div><div class="toolbar"><button id="changesRefresh" type="button">Refresh</button></div></div>
+
+      <div class="changes-sub">
+        <h3>Deal carousel</h3>
+        <div id="carouselRows"></div>
+        <div class="changes-row"><button id="addCarouselSlide" type="button" class="ghost">+ Add slide</button></div>
+      </div>
+
+      <div class="changes-sub">
+        <h3>Our Story</h3>
+        <div class="changes-row"><label style="flex:0 0 140px;">Eyebrow<input id="storyEyebrow" style="flex:1;"></label></div>
+        <div class="changes-row"><label style="flex:0 0 140px;">Title<input id="storyTitle" style="flex:1;"></label></div>
+        <div class="changes-row"><label style="flex:0 0 140px;">Emphasis<input id="storyEmphasis" style="flex:1;"></label></div>
+        <div class="changes-row"><label style="flex:0 0 140px;">Description<textarea id="storyDesc" style="flex:1; min-height:60px; resize:vertical;"></textarea></label></div>
+        <div class="changes-row"><label style="flex:0 0 140px;">Points (one per line)<textarea id="storyPoints" style="flex:1; min-height:70px; resize:vertical;"></textarea></label></div>
+        <div class="changes-row"><label style="flex:0 0 140px;">Button 1<input id="storyBtn1Label" style="flex:1;"></label><label style="flex:0 0 140px;">URL<input id="storyBtn1Href" style="flex:1;"></label></div>
+        <div class="changes-row"><label style="flex:0 0 140px;">Button 2<input id="storyBtn2Label" style="flex:1;"></label><label style="flex:0 0 140px;">URL<input id="storyBtn2Href" style="flex:1;"></label></div>
+      </div>
+
+      <div class="changes-sub">
+        <h3>Footer</h3>
+        <div class="changes-row"><label style="flex:0 0 140px;">Tagline<input id="footerTagline" style="flex:1;"></label></div>
+        <div class="changes-row"><label style="flex:0 0 140px;">Contact heading<input id="footerContactHeading" style="flex:1;"></label></div>
+        <div class="changes-row"><label style="flex:0 0 140px;">Phone<input id="footerPhone" style="flex:1;"></label><label style="flex:0 0 140px;">Tel URL<input id="footerPhoneHref" style="flex:1;"></label></div>
+        <div class="changes-row"><label style="flex:0 0 140px;">Address<input id="footerAddress" style="flex:1;"></label></div>
+        <div class="changes-row"><label style="flex:0 0 140px;">Follow heading<input id="footerFollowHeading" style="flex:1;"></label></div>
+        <div class="changes-row"><label style="flex:0 0 140px;">Facebook URL<input id="footerFbHref" style="flex:1;"></label><label style="flex:0 0 140px;">Instagram URL<input id="footerIgHref" style="flex:1;"></label></div>
+        <div class="changes-row"><label style="flex:0 0 140px;">Help heading<input id="footerHelpHeading" style="flex:1;"></label></div>
+        <div id="footerLinks"></div>
+        <div class="changes-row"><button id="addFooterLink" type="button" class="ghost">+ Add help link</button></div>
+        <div class="changes-row"><label style="flex:0 0 140px;">Powered text<input id="footerPoweredText" style="flex:1;"></label><label style="flex:0 0 140px;">Powered URL<input id="footerPoweredHref" style="flex:1;"></label></div>
+        <div id="footerBottomLinks"></div>
+        <div class="changes-row"><button id="addFooterBottomLink" type="button" class="ghost">+ Add bottom link</button></div>
+      </div>
+
+      <div class="changes-sub">
+        <h3>Save all changes</h3>
+        <div class="changes-row"><button id="saveChanges" type="button">Save changes</button><span id="changesVersion" class="muted"></span></div>
+        <p id="changesError" class="form-error" role="alert"></p>
+      </div>
     </section>
   </div>
 

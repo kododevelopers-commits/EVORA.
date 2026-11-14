@@ -30,6 +30,7 @@ const validation = require('./lib/validation');
 const { requireAdmin, requireManager, requireOwner, sameOrigin, startLogin, verifyLogin, logout } = require('./lib/auth');
 const staff = require('./lib/staff');
 const products = require('./lib/products');
+const siteContent = require('./lib/site-content');
 const mailer = require('./lib/mailer');
 const customerAuth = require('./lib/customer-auth');
 
@@ -1411,6 +1412,31 @@ app.get('/api/admin/products', requireAdmin, requireManager, adminAction(async (
 app.post('/api/admin/products', requireAdmin, requireManager, writeLimiter, adminAction(async (req, res) => res.status(201).json(await products.create(req.body))));
 app.patch('/api/admin/products/:id', requireAdmin, requireManager, writeLimiter, adminAction(async (req, res) => res.json(await products.update(req.params.id, req.body))));
 app.post('/api/admin/product-images', requireAdmin, requireManager, writeLimiter, adminAction(async (req, res) => res.status(201).json(await products.upload(req.body))));
+
+// ---------------------------------------------------------------------------
+// Site content (Changes tab) — carousel, our-story, footer
+// ---------------------------------------------------------------------------
+app.get('/api/site-content', adminAction(async (req, res) => res.json(await siteContent.list())));
+// Public read of site content so the storefront can render saved Changes
+// without needing admin credentials. Only GET, and only the content rows.
+app.get('/api/site-content/public', async (req, res) => {
+  try {
+    res.json(await siteContent.list());
+  } catch (err) {
+    res.status(503).json({ error: 'Could not load site content. Please try again.' });
+  }
+});
+app.get('/api/site-content/:key', adminAction(async (req, res) => {
+  const item = await siteContent.get(req.params.key);
+  if (!item) return res.status(404).json({ error: 'Content not found.' });
+  res.json(item);
+}));
+app.post('/api/site-content', requireAdmin, requireManager, writeLimiter, adminAction(async (req, res) => res.status(201).json(await siteContent.create(req.body))));
+app.patch('/api/site-content/:key', requireAdmin, requireManager, writeLimiter, adminAction(async (req, res) => {
+  const item = await siteContent.update(req.params.key, req.body);
+  if (!item) return res.status(404).json({ error: 'Content not found. Use POST to create it.' });
+  res.json(item);
+}));
 
 // ---------------------------------------------------------------------------
 // 404 for unknown /api routes

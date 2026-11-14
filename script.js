@@ -7,7 +7,164 @@
   });
   window.EVORA_API.cartReady.catch(function () { /* product page handles failure */ });
 
+  // ---------- Site Content (Changes tab) ----------
+  // Load and render dynamic site content from the public API
+  async function loadSiteContent() {
+    try {
+      var result = await fetch('/api/site-content/public');
+      if (!result.ok) throw new Error('Failed to load site content');
+      var rows = await result.json();
+
+      // Build lookup by key
+      var content = {};
+      rows.forEach(function (row) { content[row.key] = row.data; });
+
+      // Render carousel
+      var carouselData = content['carousel'] || [];
+      if (Array.isArray(carouselData) && carouselData.length > 0) {
+        var carouselTrack = document.getElementById('carouselTrack');
+        var carouselDots = document.getElementById('carouselDots');
+        if (carouselTrack && carouselDots) {
+          carouselTrack.innerHTML = '';
+          carouselDots.innerHTML = '';
+          carouselData.forEach(function (slide, i) {
+            var slideDiv = document.createElement('div');
+            slideDiv.className = 'carousel-slide active';
+            slideDiv.setAttribute('data-slide', i);
+            slideDiv.innerHTML =
+              '<div class="carousel-img">' +
+                '<img src="' + (slide.image || '') + '" alt="' + (slide.title || 'Deal') + '" loading="lazy">' +
+                '<div class="carousel-badge">' + (slide.badge || '') + '</div>' +
+              '</div>' +
+              '<div class="carousel-caption">' +
+                '<h3>' + (slide.title || '') + '</h3>' +
+                '<p>' + (slide.subtitle || '') + '</p>' +
+                '<a href="' + (slide.buttonHref || '') + '" class="btn btn-small">' + (slide.buttonLabel || 'Shop Now') + '</a>' +
+              '</div>';
+            carouselTrack.appendChild(slideDiv);
+
+            var dot = document.createElement('button');
+            dot.type = 'button';
+            dot.setAttribute('aria-label', 'Go to deal ' + (i + 1));
+            dot.classList.add('carousel-dot');
+            if (i === 0) dot.classList.add('active');
+            dot.addEventListener('click', function () { goToSlide(i); });
+            carouselDots.appendChild(dot);
+          });
+        }
+      }
+
+      // Render footer
+      var footerData = content['footer'] || {};
+      if (Object.keys(footerData).length > 0) {
+        renderFooterFromData(footerData);
+      }
+
+      // Render our-story on product/about pages
+      var storyData = content['our-story'] || {};
+      if (Object.keys(storyData).length > 0 && elsStory) {
+        renderStoryFromData(storyData);
+      }
+    } catch (err) {
+      console.error('Failed to load site content:', err);
+    }
+  }
+
+  function renderFooterFromData(footer) {
+    // Tagline
+    var taglineEl = document.querySelector('.footer-tagline');
+    if (taglineEl && footer.tagline) taglineEl.textContent = footer.tagline;
+
+    // Contact
+    var contactLinks = document.querySelectorAll('.footer-contact-line a');
+    if (contactLinks[0] && footer.phone) {
+      contactLinks[0].textContent = footer.phone;
+      contactLinks[0].href = 'tel:' + (footer.phoneHref || footer.phone || '');
+    }
+    if (contactLinks[1] && footer.address) {
+      contactLinks[1].textContent = footer.address;
+    }
+
+    // Social links
+    var fbLink = document.querySelector('.footer-social-link[aria-label="Facebook"]');
+    var igLink = document.querySelector('.footer-social-link[aria-label="Instagram"]');
+    if (fbLink && footer.facebookHref) fbLink.href = footer.facebookHref;
+    if (igLink && footer.instagramHref) igLink.href = footer.instagramHref;
+
+    // Help links
+    var helpLinks = document.querySelectorAll('.footer-link');
+    var helpData = footer.helpLinks || [];
+    helpLinks.forEach(function (link, i) {
+      if (helpData[i]) {
+        link.textContent = helpData[i].label || link.textContent;
+        link.href = helpData[i].href || link.href;
+      }
+    });
+
+    // Powered text
+    var poweredEl = document.querySelector('.footer-powered a');
+    if (poweredEl && footer.poweredText) {
+      poweredEl.textContent = footer.poweredText;
+    }
+    if (poweredEl && footer.poweredHref) poweredEl.href = footer.poweredHref;
+
+    // Footer bottom links
+    var bottomLinks = document.querySelectorAll('.footer-bottom-link');
+    var bottomData = footer.bottomLinks || [];
+    bottomLinks.forEach(function (link, i) {
+      if (bottomData[i]) {
+        link.textContent = bottomData[i].label || link.textContent;
+        link.href = bottomData[i].href || link.href;
+      }
+    });
+  }
+
+  function renderStoryFromData(story) {
+    // Create story section if it doesn't exist on the page
+    var existing = document.querySelector('.our-story-section');
+    if (existing) {
+      // Update existing content
+      var eyebrow = existing.querySelector('.story-eyebrow');
+      var title = existing.querySelector('.story-title');
+      if (eyebrow && story.eyebrow) eyebrow.textContent = story.eyebrow;
+      if (title && story.title) title.textContent = story.title;
+    } else {
+      // Insert story section before the footer
+      var storySection = document.createElement('section');
+      storySection.className = 'our-story-section';
+      storySection.innerHTML =
+        '<div class="section-head"><h2>' + (story.title || 'Our Story') + '</h2></div>' +
+        '<p class="story-eyebrow">' + (story.eyebrow || '') + '</p>' +
+        '<p>' + (story.description || '') + '</p>' +
+        '<div class="story-buttons">';
+      if (story.buttons && story.buttons.length > 0) {
+        story.buttons.forEach(function (btn, i) {
+          storySection.innerHTML += '<a href="' + (btn.href || '') + '" class="btn btn-primary">' + (btn.label || 'Learn More') + '</a>';
+        });
+      }
+      storySection.innerHTML += '</div>';
+      var footer = document.querySelector('footer');
+      if (footer) footer.parentNode.insertBefore(storySection, footer);
+    }
+  }
+
+  function goToSlide(index) {
+    var slides = document.querySelectorAll('.carousel-slide');
+    var dots = document.querySelectorAll('.carousel-dot');
+    if (slides.length === 0) return;
+    var i = (index + slides.length) % slides.length;
+    slides.forEach(function (s) { s.classList.remove('active'); });
+    dots.forEach(function (d) { d.classList.remove('active'); });
+    slides[i].classList.add('active');
+    dots[i].classList.add('active');
+  }
+
+  // Expose goToSlide globally for inline handlers
+  window.goToSlide = goToSlide;
+
+  // Initialize after DOM content loaded
   document.addEventListener('DOMContentLoaded', function () {
+    loadSiteContent();
   var orderingReady = false;
   var orderControls = '#cartBtn, #placeOrderBtn, .add-btn, .qty-btn, .cp-plus, .cp-minus, .cli-qty-btn, .cp-upsell-add';
   function lockOrdering(locked) {

@@ -36,7 +36,7 @@ async function get(key) {
     method: 'GET',
     prefer: 'return=representation'
   });
-  const text = await rows.text();
+  const text = rows.text;
   let rowsParsed;
   try {
     rowsParsed = JSON.parse(text);
@@ -62,7 +62,7 @@ async function list() {
   const rows = await supabase.request('/site_content?select=*&order=key.asc', {
     method: 'GET'
   });
-  const text = await rows.text();
+  const text = rows.text;
   let rowsParsed;
   try {
     rowsParsed = JSON.parse(text);
@@ -113,7 +113,7 @@ async function create(data) {
       version: data.version
     }
   });
-  const text = await response.text();
+  const text = response.text;
   let created;
   try {
     created = JSON.parse(text);
@@ -160,7 +160,7 @@ async function update(key, input) {
       version: input.version + 1
     }
   });
-  const text = await updated.text();
+  const text = updated.text;
   let rowsParsed;
   try {
     rowsParsed = JSON.parse(text);

@@ -1246,6 +1246,7 @@
       switchTab(which);
       if (which === 'products') loadProducts(true);
       else if (which === 'staff') loadAll();
+      else if (which === 'changes') loadSiteContent(true);
     });
   });
 

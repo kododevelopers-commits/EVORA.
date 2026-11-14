@@ -32,7 +32,7 @@ async function get(key) {
   if (typeof key !== 'string' || !key.trim() || /[\u0000-\u001f\u007f]/.test(key)) {
     throw fail(400, 'A valid key is required.');
   }
-  const rows = await supabase.request('/site-content?id=eq.' + encodeURIComponent(key.trim()), {
+  const rows = await supabase.request('/site_content?id=eq.' + encodeURIComponent(key.trim()), {
     method: 'GET',
     prefer: 'return=representation'
   });
@@ -59,7 +59,7 @@ async function get(key) {
 }
 
 async function list() {
-  const rows = await supabase.request('/site-content?select=*&order=key.asc', {
+  const rows = await supabase.request('/site_content?select=*&order=key.asc', {
     method: 'GET'
   });
   const text = await rows.text();
@@ -104,7 +104,7 @@ async function create(data) {
     throw fail(409, 'Content with this key already exists. Use PATCH to update it.');
   }
 
-  const response = await supabase.request('/site-content', {
+  const response = await supabase.request('/site_content', {
     method: 'POST',
     prefer: 'return=representation',
     body: {
@@ -152,7 +152,7 @@ async function update(key, input) {
     throw fail(409, 'This content was changed by someone else. Refresh and try again.');
   }
 
-  const updated = await supabase.request('/site-content?id=eq.' + encodeURIComponent(key.trim()) + '&version=eq.' + input.version, {
+  const updated = await supabase.request('/site_content?id=eq.' + encodeURIComponent(key.trim()) + '&version=eq.' + input.version, {
     method: 'PATCH',
     prefer: 'return=representation',
     body: {

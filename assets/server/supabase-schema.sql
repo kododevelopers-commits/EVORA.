@@ -1,10 +1,3 @@
--- ============================================================================
--- Evora — Supabase Schema
--- ----------------------------------------------------------------------------
--- This schema adds the site_content table for dynamic site content management.
--- Run this SQL in your Supabase project's SQL editor.
--- ============================================================================
-
 -- Create the site_content table
 CREATE TABLE IF NOT EXISTS site_content (
   id TEXT PRIMARY KEY,
@@ -21,6 +14,7 @@ CREATE INDEX IF NOT EXISTS site_content_key_idx ON site_content(key);
 ALTER TABLE site_content ENABLE ROW LEVEL SECURITY;
 
 -- Only authenticated admin users can read/write
+-- Note: Replace 'authenticated' with 'service_role' or a custom role if needed
 CREATE POLICY "Admins can manage site content"
   ON site_content
   FOR ALL

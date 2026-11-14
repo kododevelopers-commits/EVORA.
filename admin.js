@@ -70,7 +70,7 @@
     'productName', 'productPrice', 'productOriginalPrice', 'productCategory', 'productDescription', 'productImage', 'productHoverImage',
     'productImageFile', 'productHoverFile', 'productAvailable', 'productImagePreview', 'productHoverPreview',
     'productEditorTitle', 'productIdText', 'productError', 'saveProduct', 'cancelProduct',
-    'changesTab', 'panelChanges', 'changesRefresh', 'carouselRows', 'addCarouselSlide',
+    'changesTab', 'changesRefresh', 'carouselRows', 'addCarouselSlide',
     'storyEyebrow', 'storyTitle', 'storyEmphasis', 'storyDesc', 'storyPoints', 'storyBtn1Label', 'storyBtn1Href', 'storyBtn2Label', 'storyBtn2Href',
     'footerTagline', 'footerContactHeading', 'footerPhone', 'footerPhoneHref', 'footerAddress', 'footerFollowHeading', 'footerFbHref', 'footerIgHref',
     'footerHelpHeading', 'footerLinks', 'addFooterLink', 'footerPoweredText', 'footerPoweredHref', 'footerBottomLinks', 'addFooterBottomLink',

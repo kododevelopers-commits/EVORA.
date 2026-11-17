@@ -1242,20 +1242,82 @@
       els.analyticsCharts.innerHTML = '';
 
       var canvas = document.createElement('canvas');
-      canvas.height = 200;
+      canvas.width = Math.max(320, months.length * 72);
+      canvas.height = 240;
+      canvas.style.maxWidth = '100%';
+      canvas.style.height = 'auto';
       els.analyticsCharts.appendChild(canvas);
 
-      // Simple text-based "chart" for demo
+      var ctx = canvas.getContext('2d');
+      var maxVal = 1;
       months.forEach(function (m) {
-        var row = document.createElement('div');
-        row.style.display = 'flex';
-        row.style.alignItems = 'center';
-        row.style.gap = '16px';
-        row.innerHTML = '<strong>' + m + '</strong>' +
-          '<span>Orders: ' + data[m].orders + '</span>' +
-          '<span>Visitors: ' + data[m].visitors + '</span>';
-        els.analyticsCharts.appendChild(row);
+        if (data[m].orders > maxVal) maxVal = data[m].orders;
+        if (data[m].visitors > maxVal) maxVal = data[m].visitors;
       });
+
+      var padL = 36;
+      var padB = 28;
+      var padT = 12;
+      var padR = 12;
+      var w = canvas.width;
+      var h = canvas.height;
+      var plotW = w - padL - padR;
+      var plotH = h - padB - padT;
+
+      ctx.fillStyle = '#0d0d0d';
+      ctx.fillRect(padL, padT, plotW, plotH);
+
+      ctx.strokeStyle = '#2a2a2a';
+      ctx.fillStyle = '#888';
+      ctx.font = '11px sans-serif';
+      ctx.textAlign = 'right';
+      ctx.textBaseline = 'middle';
+      var ticks = 5;
+      for (var t = 0; t <= ticks; t++) {
+        var y = padT + (plotH / ticks) * t;
+        ctx.beginPath();
+        ctx.moveTo(padL, y);
+        ctx.lineTo(padL + plotW, y);
+        ctx.stroke();
+        var val = Math.round(maxVal - (maxVal / ticks) * t);
+        ctx.fillText(String(val), padL - 6, y);
+      }
+
+      var n = months.length;
+      var barW = plotW / n * 0.55;
+      var gap = plotW / n;
+
+      months.forEach(function (m, i) {
+        var d = data[m];
+        var cx = padL + gap * i + gap / 2;
+        var x = cx - barW / 2;
+
+        var oh = (d.orders / maxVal) * plotH;
+        var oy = padT + plotH - oh;
+        ctx.fillStyle = '#c8a24a';
+        ctx.fillRect(x, oy, barW / 2 - 2, oh);
+
+        var vh = (d.visitors / maxVal) * plotH;
+        var vy = padT + plotH - vh;
+        ctx.fillStyle = '#888';
+        ctx.fillRect(x + barW / 2 + 2, vy, barW / 2 - 2, vh);
+
+        ctx.fillStyle = '#aaa';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'top';
+        ctx.fillText(m.slice(5), cx, padT + plotH + 6);
+      });
+
+      ctx.textAlign = 'left';
+      ctx.textBaseline = 'top';
+      ctx.fillStyle = '#c8a24a';
+      ctx.fillRect(padL + 8, h - 18, 10, 10);
+      ctx.fillStyle = '#ccc';
+      ctx.fillText('Orders', padL + 22, h - 18);
+      ctx.fillStyle = '#888';
+      ctx.fillRect(padL + 80, h - 18, 10, 10);
+      ctx.fillStyle = '#ccc';
+      ctx.fillText('Visitors', padL + 94, h - 18);
     } catch (err) {
       reportError(err);
     }

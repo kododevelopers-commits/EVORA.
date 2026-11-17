@@ -1239,7 +1239,6 @@
     try {
       var data = await api('/api/analytics');
 
-      // Extract available years from data
       var yearSet = {};
       Object.keys(data).forEach(function (key) {
         var parts = key.split('-');
@@ -1249,7 +1248,6 @@
       var currentYear = String(new Date().getFullYear());
       if (years.length === 0) years.push(currentYear);
 
-      // Populate year selector if empty or changed
       var selYear = els.analyticsYear.value || currentYear;
       els.analyticsYear.innerHTML = '';
       years.forEach(function (y) {
@@ -1262,6 +1260,7 @@
       selYear = els.analyticsYear.value || years[0];
 
       els.analyticsCharts.innerHTML = '';
+      els.analyticsCharts.style.position = 'relative';
 
       var monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
       var fullYearData = monthNames.map(function (name, idx) {
@@ -1271,149 +1270,185 @@
         return { name: name, key: key, orders: d.orders || 0, visitors: d.visitors || 0 };
       });
 
-      // Canvas dimensions
       var canvas = document.createElement('canvas');
-      canvas.width = 720;
-      canvas.height = 340;
+      var dpr = window.devicePixelRatio || 1;
+      var displayW = 720;
+      var displayH = 340;
+      canvas.width = displayW * dpr;
+      canvas.height = displayH * dpr;
       canvas.style.width = '100%';
+      canvas.style.maxWidth = displayW + 'px';
       canvas.style.height = 'auto';
       canvas.style.display = 'block';
       els.analyticsCharts.appendChild(canvas);
 
       var ctx = canvas.getContext('2d');
+      ctx.scale(dpr, dpr);
+
       var maxVal = 1;
       fullYearData.forEach(function (d) {
         if (d.orders > maxVal) maxVal = d.orders;
         if (d.visitors > maxVal) maxVal = d.visitors;
       });
-      // Round maxVal up to nice tick
       maxVal = Math.ceil(maxVal * 1.15) || 10;
 
       var padL = 50;
       var padB = 50;
       var padT = 30;
       var padR = 20;
-      var w = canvas.width;
-      var h = canvas.height;
+      var w = displayW;
+      var h = displayH;
       var plotW = w - padL - padR;
       var plotH = h - padB - padT;
+      var stepX = plotW / 11;
 
-      // Dark background
-      ctx.fillStyle = '#111';
-      ctx.fillRect(0, 0, w, h);
+      var tip = document.createElement('div');
+      tip.style.position = 'absolute';
+      tip.style.display = 'none';
+      tip.style.background = 'rgba(0,0,0,0.85)';
+      tip.style.color = '#fff';
+      tip.style.padding = '8px 12px';
+      tip.style.borderRadius = '6px';
+      tip.style.fontSize = '12px';
+      tip.style.pointerEvents = 'none';
+      tip.style.zIndex = '10';
+      tip.style.border = '1px solid #333';
+      tip.style.boxShadow = '0 4px 12px rgba(0,0,0,0.5)';
+      els.analyticsCharts.appendChild(tip);
 
-      // Grid lines & Y-axis
-      ctx.strokeStyle = '#222';
-      ctx.lineWidth = 1;
-      ctx.fillStyle = '#888';
-      ctx.font = '12px sans-serif';
-      ctx.textAlign = 'right';
-      ctx.textBaseline = 'middle';
-      var ticks = 5;
-      for (var t = 0; t <= ticks; t++) {
-        var y = padT + (plotH / ticks) * t;
+      function draw() {
+        ctx.clearRect(0, 0, w, h);
+        ctx.fillStyle = '#111';
+        ctx.fillRect(0, 0, w, h);
+
+        ctx.strokeStyle = '#222';
+        ctx.lineWidth = 1;
+        ctx.fillStyle = '#888';
+        ctx.font = '12px sans-serif';
+        ctx.textAlign = 'right';
+        ctx.textBaseline = 'middle';
+        var ticks = 5;
+        for (var t = 0; t <= ticks; t++) {
+          var y = padT + (plotH / ticks) * t;
+          ctx.beginPath();
+          ctx.moveTo(padL, y);
+          ctx.lineTo(padL + plotW, y);
+          ctx.stroke();
+          var val = Math.round(maxVal - (maxVal / ticks) * t);
+          ctx.fillText(String(val), padL - 8, y);
+        }
+
+        ctx.strokeStyle = '#444';
+        ctx.lineWidth = 1.5;
         ctx.beginPath();
-        ctx.moveTo(padL, y);
-        ctx.lineTo(padL + plotW, y);
+        ctx.moveTo(padL, padT);
+        ctx.lineTo(padL, padT + plotH);
+        ctx.lineTo(padL + plotW, padT + plotH);
         ctx.stroke();
-        var val = Math.round(maxVal - (maxVal / ticks) * t);
-        ctx.fillText(String(val), padL - 8, y);
-      }
 
-      // Axis lines
-      ctx.strokeStyle = '#444';
-      ctx.lineWidth = 1.5;
-      ctx.beginPath();
-      ctx.moveTo(padL, padT);
-      ctx.lineTo(padL, padT + plotH);
-      ctx.lineTo(padL + plotW, padT + plotH);
-      ctx.stroke();
-
-      // X axis labels (Months)
-      var n = 12;
-      var stepX = plotW / (n - 1);
-      fullYearData.forEach(function (d, i) {
-        var x = padL + stepX * i;
-        ctx.fillStyle = '#aaa';
-        ctx.font = '11px sans-serif';
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'top';
-        ctx.fillText(d.name, x, padT + plotH + 8);
-      });
-
-      // Helper for drawing line + points
-      function drawLine(key, color, fillStyle) {
-        var points = fullYearData.map(function (d, i) {
-          var val = d[key];
+        fullYearData.forEach(function (d, i) {
           var x = padL + stepX * i;
-          var y = padT + plotH - (val / maxVal) * plotH;
-          return { x: x, y: y, val: val };
+          ctx.fillStyle = '#aaa';
+          ctx.font = '11px sans-serif';
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'top';
+          ctx.fillText(d.name, x, padT + plotH + 8);
         });
 
-        // Area fill under line
-        ctx.beginPath();
-        ctx.moveTo(points[0].x, padT + plotH);
-        points.forEach(function (p) { ctx.lineTo(p.x, p.y); });
-        ctx.lineTo(points[points.length - 1].x, padT + plotH);
-        ctx.closePath();
-        ctx.fillStyle = fillStyle;
-        ctx.fill();
+        function getPoints(key) {
+          return fullYearData.map(function (d, i) {
+            return { x: padL + stepX * i, y: padT + plotH - (d[key] / maxVal) * plotH, val: d[key] };
+          });
+        }
 
-        // Line
-        ctx.beginPath();
-        ctx.moveTo(points[0].x, points[0].y);
-        points.forEach(function (p) { ctx.lineTo(p.x, p.y); });
-        ctx.strokeStyle = color;
-        ctx.lineWidth = 2.5;
-        ctx.stroke();
-
-        // Dots & data labels
-        points.forEach(function (p) {
+        function drawLayer(key, color, fill) {
+          var pts = getPoints(key);
           ctx.beginPath();
-          ctx.arc(p.x, p.y, 4, 0, Math.PI * 2);
-          ctx.fillStyle = color;
+          ctx.moveTo(pts[0].x, padT + plotH);
+          pts.forEach(function(p) { ctx.lineTo(p.x, p.y); });
+          ctx.lineTo(pts[pts.length-1].x, padT + plotH);
+          ctx.closePath();
+          ctx.fillStyle = fill;
           ctx.fill();
-          ctx.strokeStyle = '#111';
-          ctx.lineWidth = 1.5;
+
+          ctx.beginPath();
+          ctx.moveTo(pts[0].x, pts[0].y);
+          pts.forEach(function(p) { ctx.lineTo(p.x, p.y); });
+          ctx.strokeStyle = color;
+          ctx.lineWidth = 2.5;
           ctx.stroke();
 
-          if (p.val > 0) {
+          pts.forEach(function(p) {
+            ctx.beginPath();
+            ctx.arc(p.x, p.y, 4, 0, Math.PI*2);
             ctx.fillStyle = color;
-            ctx.font = 'bold 10px sans-serif';
-            ctx.textAlign = 'center';
-            ctx.textBaseline = 'bottom';
-            ctx.fillText(String(p.val), p.x, p.y - 6);
-          }
-        });
+            ctx.fill();
+            ctx.strokeStyle = '#111';
+            ctx.lineWidth = 1.5;
+            ctx.stroke();
+          });
+        }
+
+        drawLayer('visitors', '#4a90e2', 'rgba(74, 144, 226, 0.12)');
+        drawLayer('orders', '#c8a24a', 'rgba(200, 162, 74, 0.15)');
+
+        ctx.font = '12px sans-serif';
+        ctx.textAlign = 'left';
+        ctx.textBaseline = 'middle';
+        ctx.fillStyle = '#c8a24a';
+        ctx.fillRect(padL, 12, 12, 12);
+        ctx.fillStyle = '#e0e0e0';
+        ctx.fillText('Orders', padL + 18, 18);
+        ctx.fillStyle = '#4a90e2';
+        ctx.fillRect(padL + 90, 12, 12, 12);
+        ctx.fillStyle = '#e0e0e0';
+        ctx.fillText('Visitors', padL + 108, 18);
+        ctx.fillStyle = '#888';
+        ctx.font = '11px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText('Month (' + selYear + ')', padL + plotW / 2, h - 10);
       }
 
-      // Draw Visitors line first (background)
-      drawLine('visitors', '#4a90e2', 'rgba(74, 144, 226, 0.12)');
-      // Draw Orders line second (foreground)
-      drawLine('orders', '#c8a24a', 'rgba(200, 162, 74, 0.15)');
+      draw();
 
-      // Legend & Axis Titles
-      ctx.font = '12px sans-serif';
-      ctx.textAlign = 'left';
-      ctx.textBaseline = 'middle';
+      canvas.addEventListener('mousemove', function (e) {
+        var rect = canvas.getBoundingClientRect();
+        var mx = (e.clientX - rect.left) * (displayW / rect.width);
+        var my = (e.clientY - rect.top) * (displayH / rect.height);
 
-      // Legend: Orders
-      ctx.fillStyle = '#c8a24a';
-      ctx.fillRect(padL, 12, 12, 12);
-      ctx.fillStyle = '#e0e0e0';
-      ctx.fillText('Orders', padL + 18, 18);
+        if (mx < padL || mx > padL + plotW || my < padT || my > padT + plotH) {
+          tip.style.display = 'none';
+          draw();
+          return;
+        }
 
-      // Legend: Visitors
-      ctx.fillStyle = '#4a90e2';
-      ctx.fillRect(padL + 90, 12, 12, 12);
-      ctx.fillStyle = '#e0e0e0';
-      ctx.fillText('Visitors', padL + 108, 18);
+        var idx = Math.round((mx - padL) / stepX);
+        if (idx < 0) idx = 0; if (idx > 11) idx = 11;
+        var d = fullYearData[idx];
+        var px = padL + stepX * idx;
 
-      // X-Axis Label
-      ctx.fillStyle = '#888';
-      ctx.font = '11px sans-serif';
-      ctx.textAlign = 'center';
-      ctx.fillText('Month (' + selYear + ')', padL + plotW / 2, h - 10);
+        draw();
+        ctx.setLineDash([5, 5]);
+        ctx.strokeStyle = '#555';
+        ctx.beginPath();
+        ctx.moveTo(px, padT);
+        ctx.lineTo(px, padT + plotH);
+        ctx.stroke();
+        ctx.setLineDash([]);
+
+        tip.style.display = 'block';
+        tip.style.left = (px + 10) + 'px';
+        tip.style.top = (my - 20) + 'px';
+        tip.innerHTML = '<strong>' + d.name + ' ' + selYear + '</strong><br>' +
+          '<span style="color:#c8a24a">Orders: ' + d.orders + '</span><br>' +
+          '<span style="color:#4a90e2">Visitors: ' + d.visitors + '</span>';
+      });
+
+      canvas.addEventListener('mouseleave', function () {
+        tip.style.display = 'none';
+        draw();
+      });
+
     } catch (err) {
       reportError(err);
     }

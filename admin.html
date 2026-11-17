@@ -665,7 +665,12 @@
     <section id="panel-analytics" style="display:none;">
       <div class="section-head">
         <div><h2>Analytics</h2><p>Monthly orders and website visitors.</p></div>
-        <div class="toolbar"><button id="analyticsRefresh" type="button">Refresh</button></div>
+        <div class="toolbar">
+        <label>Year:
+          <select id="analyticsYear"></select>
+        </label>
+        <button id="analyticsRefresh" type="button">Refresh</button>
+      </div>
       </div>
       <div class="chart-container" style="background:#1a1a1a; padding:24px; border-radius:16px; color:#fff; margin-bottom:24px;">
         <h3 style="margin-bottom:16px; font-size:16px;">Monthly Orders & Visitors</h3>

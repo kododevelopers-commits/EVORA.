@@ -75,7 +75,7 @@
     'footerTagline', 'footerContactHeading', 'footerPhone', 'footerPhoneHref', 'footerAddress', 'footerFollowHeading', 'footerFbHref', 'footerIgHref',
     'footerHelpHeading', 'footerLinks', 'addFooterLink', 'footerPoweredText', 'footerPoweredHref', 'footerBottomLinks', 'addFooterBottomLink',
     'saveChanges', 'changesVersion', 'changesError',
-    'analyticsTab', 'analyticsRefresh', 'analyticsCharts'
+    'analyticsTab', 'analyticsRefresh', 'analyticsYear', 'analyticsCharts'
   ].forEach(function (id) { els[id] = document.getElementById(id); });
 
   // -------- Toast --------
@@ -1238,38 +1238,75 @@
   async function renderAnalytics() {
     try {
       var data = await api('/api/analytics');
-      var months = Object.keys(data).sort();
+
+      // Extract available years from data
+      var yearSet = {};
+      Object.keys(data).forEach(function (key) {
+        var parts = key.split('-');
+        if (parts[0]) yearSet[parts[0]] = true;
+      });
+      var years = Object.keys(yearSet).sort();
+      var currentYear = String(new Date().getFullYear());
+      if (years.length === 0) years.push(currentYear);
+
+      // Populate year selector if empty or changed
+      var selYear = els.analyticsYear.value || currentYear;
+      els.analyticsYear.innerHTML = '';
+      years.forEach(function (y) {
+        var opt = document.createElement('option');
+        opt.value = y;
+        opt.textContent = y;
+        if (y === selYear) opt.selected = true;
+        els.analyticsYear.appendChild(opt);
+      });
+      selYear = els.analyticsYear.value || years[0];
+
       els.analyticsCharts.innerHTML = '';
 
+      var monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+      var fullYearData = monthNames.map(function (name, idx) {
+        var monthNum = idx + 1;
+        var key = selYear + '-' + monthNum;
+        var d = data[key] || { orders: 0, visitors: 0 };
+        return { name: name, key: key, orders: d.orders || 0, visitors: d.visitors || 0 };
+      });
+
+      // Canvas dimensions
       var canvas = document.createElement('canvas');
-      canvas.width = Math.max(320, months.length * 72);
-      canvas.height = 240;
-      canvas.style.maxWidth = '100%';
+      canvas.width = 720;
+      canvas.height = 340;
+      canvas.style.width = '100%';
       canvas.style.height = 'auto';
+      canvas.style.display = 'block';
       els.analyticsCharts.appendChild(canvas);
 
       var ctx = canvas.getContext('2d');
       var maxVal = 1;
-      months.forEach(function (m) {
-        if (data[m].orders > maxVal) maxVal = data[m].orders;
-        if (data[m].visitors > maxVal) maxVal = data[m].visitors;
+      fullYearData.forEach(function (d) {
+        if (d.orders > maxVal) maxVal = d.orders;
+        if (d.visitors > maxVal) maxVal = d.visitors;
       });
+      // Round maxVal up to nice tick
+      maxVal = Math.ceil(maxVal * 1.15) || 10;
 
-      var padL = 36;
-      var padB = 28;
-      var padT = 12;
-      var padR = 12;
+      var padL = 50;
+      var padB = 50;
+      var padT = 30;
+      var padR = 20;
       var w = canvas.width;
       var h = canvas.height;
       var plotW = w - padL - padR;
       var plotH = h - padB - padT;
 
-      ctx.fillStyle = '#0d0d0d';
-      ctx.fillRect(padL, padT, plotW, plotH);
+      // Dark background
+      ctx.fillStyle = '#111';
+      ctx.fillRect(0, 0, w, h);
 
-      ctx.strokeStyle = '#2a2a2a';
+      // Grid lines & Y-axis
+      ctx.strokeStyle = '#222';
+      ctx.lineWidth = 1;
       ctx.fillStyle = '#888';
-      ctx.font = '11px sans-serif';
+      ctx.font = '12px sans-serif';
       ctx.textAlign = 'right';
       ctx.textBaseline = 'middle';
       var ticks = 5;
@@ -1280,49 +1317,109 @@
         ctx.lineTo(padL + plotW, y);
         ctx.stroke();
         var val = Math.round(maxVal - (maxVal / ticks) * t);
-        ctx.fillText(String(val), padL - 6, y);
+        ctx.fillText(String(val), padL - 8, y);
       }
 
-      var n = months.length;
-      var barW = plotW / n * 0.55;
-      var gap = plotW / n;
+      // Axis lines
+      ctx.strokeStyle = '#444';
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.moveTo(padL, padT);
+      ctx.lineTo(padL, padT + plotH);
+      ctx.lineTo(padL + plotW, padT + plotH);
+      ctx.stroke();
 
-      months.forEach(function (m, i) {
-        var d = data[m];
-        var cx = padL + gap * i + gap / 2;
-        var x = cx - barW / 2;
-
-        var oh = (d.orders / maxVal) * plotH;
-        var oy = padT + plotH - oh;
-        ctx.fillStyle = '#c8a24a';
-        ctx.fillRect(x, oy, barW / 2 - 2, oh);
-
-        var vh = (d.visitors / maxVal) * plotH;
-        var vy = padT + plotH - vh;
-        ctx.fillStyle = '#888';
-        ctx.fillRect(x + barW / 2 + 2, vy, barW / 2 - 2, vh);
-
+      // X axis labels (Months)
+      var n = 12;
+      var stepX = plotW / (n - 1);
+      fullYearData.forEach(function (d, i) {
+        var x = padL + stepX * i;
         ctx.fillStyle = '#aaa';
+        ctx.font = '11px sans-serif';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'top';
-        ctx.fillText(m.slice(5), cx, padT + plotH + 6);
+        ctx.fillText(d.name, x, padT + plotH + 8);
       });
 
+      // Helper for drawing line + points
+      function drawLine(key, color, fillStyle) {
+        var points = fullYearData.map(function (d, i) {
+          var val = d[key];
+          var x = padL + stepX * i;
+          var y = padT + plotH - (val / maxVal) * plotH;
+          return { x: x, y: y, val: val };
+        });
+
+        // Area fill under line
+        ctx.beginPath();
+        ctx.moveTo(points[0].x, padT + plotH);
+        points.forEach(function (p) { ctx.lineTo(p.x, p.y); });
+        ctx.lineTo(points[points.length - 1].x, padT + plotH);
+        ctx.closePath();
+        ctx.fillStyle = fillStyle;
+        ctx.fill();
+
+        // Line
+        ctx.beginPath();
+        ctx.moveTo(points[0].x, points[0].y);
+        points.forEach(function (p) { ctx.lineTo(p.x, p.y); });
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 2.5;
+        ctx.stroke();
+
+        // Dots & data labels
+        points.forEach(function (p) {
+          ctx.beginPath();
+          ctx.arc(p.x, p.y, 4, 0, Math.PI * 2);
+          ctx.fillStyle = color;
+          ctx.fill();
+          ctx.strokeStyle = '#111';
+          ctx.lineWidth = 1.5;
+          ctx.stroke();
+
+          if (p.val > 0) {
+            ctx.fillStyle = color;
+            ctx.font = 'bold 10px sans-serif';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'bottom';
+            ctx.fillText(String(p.val), p.x, p.y - 6);
+          }
+        });
+      }
+
+      // Draw Visitors line first (background)
+      drawLine('visitors', '#4a90e2', 'rgba(74, 144, 226, 0.12)');
+      // Draw Orders line second (foreground)
+      drawLine('orders', '#c8a24a', 'rgba(200, 162, 74, 0.15)');
+
+      // Legend & Axis Titles
+      ctx.font = '12px sans-serif';
       ctx.textAlign = 'left';
-      ctx.textBaseline = 'top';
+      ctx.textBaseline = 'middle';
+
+      // Legend: Orders
       ctx.fillStyle = '#c8a24a';
-      ctx.fillRect(padL + 8, h - 18, 10, 10);
-      ctx.fillStyle = '#ccc';
-      ctx.fillText('Orders', padL + 22, h - 18);
+      ctx.fillRect(padL, 12, 12, 12);
+      ctx.fillStyle = '#e0e0e0';
+      ctx.fillText('Orders', padL + 18, 18);
+
+      // Legend: Visitors
+      ctx.fillStyle = '#4a90e2';
+      ctx.fillRect(padL + 90, 12, 12, 12);
+      ctx.fillStyle = '#e0e0e0';
+      ctx.fillText('Visitors', padL + 108, 18);
+
+      // X-Axis Label
       ctx.fillStyle = '#888';
-      ctx.fillRect(padL + 80, h - 18, 10, 10);
-      ctx.fillStyle = '#ccc';
-      ctx.fillText('Visitors', padL + 94, h - 18);
+      ctx.font = '11px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('Month (' + selYear + ')', padL + plotW / 2, h - 10);
     } catch (err) {
       reportError(err);
     }
   }
 
+  els.analyticsYear.addEventListener('change', function () { renderAnalytics(); });
   els.analyticsRefresh.addEventListener('click', function () { renderAnalytics(); });
   els.statusFilter.addEventListener('change', renderOrders);
   els.searchInput.addEventListener('input', renderOrders);

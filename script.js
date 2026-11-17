@@ -34,12 +34,6 @@
             slideDiv.innerHTML =
               '<div class="carousel-img">' +
                 '<img src="' + (slide.image || '') + '" alt="' + (slide.title || 'Deal') + '" loading="lazy">' +
-                '<div class="carousel-badge">' + (slide.badge || '') + '</div>' +
-              '</div>' +
-              '<div class="carousel-caption">' +
-                '<h3>' + (slide.title || '') + '</h3>' +
-                '<p>' + (slide.subtitle || '') + '</p>' +
-                '<a href="' + (slide.buttonHref || '') + '" class="btn btn-small">' + (slide.buttonLabel || 'Shop Now') + '</a>' +
               '</div>';
             carouselTrack.appendChild(slideDiv);
 

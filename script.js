@@ -31,13 +31,19 @@
           var shopBtn = document.getElementById('carouselShopBtn');
           carouselData.forEach(function (slide, i) {
             var slideDiv = document.createElement('div');
-            slideDiv.className = 'carousel-slide active';
+            slideDiv.className = 'carousel-slide';
+            if (i === 0) slideDiv.classList.add('active');
             slideDiv.setAttribute('data-slide', i);
             slideDiv.setAttribute('data-btnlabel', slide.buttonLabel || 'Shop Now');
-            slideDiv.innerHTML =
+            var slideContent = '';
+            if (slide.badge) {
+              slideContent += '<div class="carousel-badge">' + slide.badge + '</div>';
+            }
+            slideContent +=
               '<div class="carousel-img">' +
                 '<img src="' + (slide.image || '') + '" alt="' + (slide.title || 'Deal') + '" loading="lazy">' +
               '</div>';
+            slideDiv.innerHTML = slideContent;
             carouselTrack.appendChild(slideDiv);
             if (i === 0 && shopBtn) shopBtn.textContent = slide.buttonLabel || 'Shop Now';
 
@@ -430,48 +436,58 @@
     });
   }
 
-  // ---------- Deal banner carousel (autoplay every 5s) ----------
+  // ---------- Deal banner carousel (autoplay every 3s) ----------
+  // The slides and dots are built asynchronously by loadSiteContent() from the
+  // site-content API, so this block only wires the controls and re-queries the
+  // DOM on every move. That keeps the arrows and autoplay working no matter when
+  // the slides arrive (a captured node list goes stale the moment the track is
+  // rebuilt and wipes the carousel).
   var carousel = document.getElementById('dealCarousel');
   if (carousel) {
-    var slides = Array.prototype.slice.call(carousel.querySelectorAll('.carousel-slide'));
-    var dotsWrap = document.getElementById('carouselDots');
     var prevArrow = document.getElementById('carouselPrev');
     var nextArrow = document.getElementById('carouselNext');
-    var current = 0;
-    var intervalId = null;
     var AUTOPLAY_MS = 3000;
+    var intervalId = null;
 
-    slides.forEach(function (slide, i) {
-      var dot = document.createElement('button');
-      dot.type = 'button';
-      dot.setAttribute('aria-label', 'Go to deal ' + (i + 1));
-      if (i === 0) dot.classList.add('active');
-      dot.addEventListener('click', function () {
-        goTo(i);
-        restartAutoplay();
-      });
-      dotsWrap.appendChild(dot);
-    });
-
-    var dots = Array.prototype.slice.call(dotsWrap.children);
-
-    function goTo(index) {
-      slides[current].classList.remove('active');
-      dots[current].classList.remove('active');
-      current = (index + slides.length) % slides.length;
-      slides[current].classList.add('active');
-      dots[current].classList.add('active');
+    function getSlides() {
+      return Array.prototype.slice.call(carousel.querySelectorAll('.carousel-slide'));
+    }
+    function getDots() {
+      return Array.prototype.slice.call(carousel.querySelectorAll('.carousel-dot'));
+    }
+    function getCurrent() {
+      var slides = getSlides();
+      var active = carousel.querySelector('.carousel-slide.active');
+      var idx = slides.indexOf(active);
+      return idx >= 0 ? idx : 0;
     }
 
-    function next() { goTo(current + 1); }
-    function prev() { goTo(current - 1); }
+    function goTo(index) {
+      var slides = getSlides();
+      var dots = getDots();
+      if (slides.length === 0) return;
+      var i = (index + slides.length) % slides.length;
+      slides.forEach(function (s) { s.classList.remove('active'); });
+      dots.forEach(function (d) { d.classList.remove('active'); });
+      slides[i].classList.add('active');
+      if (dots[i]) dots[i].classList.add('active');
+      // Update the per-slide button label to match the active slide
+      var shopBtn = document.getElementById('carouselShopBtn');
+      if (shopBtn) shopBtn.textContent = slides[i].getAttribute('data-btnlabel') || 'Shop Now';
+    }
+
+    function next() { goTo(getCurrent() + 1); }
+    function prev() { goTo(getCurrent() - 1); }
 
     function startAutoplay() {
-      if (REDUCED_MOTION) return; // don't auto-advance when motion is reduced
+      if (window.matchMedia &&
+        window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+      if (intervalId) window.clearInterval(intervalId);
       intervalId = window.setInterval(next, AUTOPLAY_MS);
     }
     function stopAutoplay() {
       if (intervalId) window.clearInterval(intervalId);
+      intervalId = null;
     }
     function restartAutoplay() {
       stopAutoplay();
@@ -502,7 +518,22 @@
       startAutoplay();
     }, { passive: true });
 
-    startAutoplay();
+    // Delegate dot clicks (dots are built by loadSiteContent())
+    carousel.addEventListener('click', function (e) {
+      var dot = e.target.closest('.carousel-dot');
+      if (!dot) return;
+      var dots = getDots();
+      var i = dots.indexOf(dot);
+      if (i >= 0) { goTo(i); restartAutoplay(); }
+    });
+
+    // Start autoplay once slides exist. loadSiteContent() rebuilds the track
+    // asynchronously, so poll until the first slide is in the DOM.
+    function tryStart() {
+      if (getSlides().length > 0) { startAutoplay(); }
+      else setTimeout(tryStart, 50);
+    }
+    tryStart();
   }
 
   // ---------- Search bar + menu category tabs ----------
@@ -1467,6 +1498,39 @@
     floatingTop.addEventListener('click', function () {
       window.scrollTo({ top: 0, behavior: scrollBehavior() });
     });
+  }
+
+  // Loading overlay logic
+  var loadingOverlay = document.getElementById('loadingOverlay');
+  var loadingText = document.getElementById('loadingText');
+  if (loadingOverlay && loadingText) {
+    var words = ["LOADING", "EVERYDAY", "STYLE"];
+    loadingText.innerHTML = '';
+    words.forEach(function (w, idx) {
+      var span = document.createElement('span');
+      span.className = 'loading-word';
+      span.style.animationDelay = (idx * 0.25) + 's';
+      span.textContent = w;
+      loadingText.appendChild(span);
+    });
+
+    window.addEventListener('load', function () {
+      setTimeout(function () {
+        loadingOverlay.classList.add('fade-out');
+        setTimeout(function () {
+          loadingOverlay.remove();
+        }, 600);
+      }, 500);
+    });
+    // Fallback in case load event already fired
+    setTimeout(function () {
+      if (document.body.contains(loadingOverlay)) {
+        loadingOverlay.classList.add('fade-out');
+        setTimeout(function () {
+          if (document.body.contains(loadingOverlay)) loadingOverlay.remove();
+        }, 600);
+      }
+    }, 2500);
   }
 
   if (floatingSearch) {

@@ -2624,6 +2624,23 @@ button {
   transition: opacity 0.7s ease;
 }
 
+.carousel-badge {
+  position: absolute;
+  top: 18px;
+  left: 18px;
+  background: rgba(255, 255, 255, 0.95);
+  color: #000;
+  padding: 6px 14px;
+  border-radius: 50px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  z-index: 10;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+  pointer-events: none;
+}
+
 .carousel-slide.active {
   opacity: 1;
   visibility: visible;
@@ -2843,13 +2860,67 @@ button {
   }
 }
 
+/* Loading Overlay */
+.loading-overlay {
+  position: fixed;
+  inset: 0;
+  background: #fff;
+  z-index: 9999;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 24px;
+  transition: opacity 0.6s ease, visibility 0.6s;
+}
+
+.loading-overlay.fade-out {
+  opacity: 0;
+  visibility: hidden;
+}
+
+.loading-logo {
+  width: 120px;
+  height: auto;
+  opacity: 0;
+  animation: fadeIn 1s ease forwards;
+}
+
+.loading-text {
+  font-size: 14px;
+  font-weight: 500;
+  letter-spacing: 4px;
+  text-transform: uppercase;
+  color: #1a1a1a;
+  height: 20px;
+  overflow: hidden;
+  display: flex;
+  gap: 8px;
+}
+
+.loading-word {
+  opacity: 0;
+  transform: translateY(20px);
+  animation: slideInWord 0.6s ease forwards;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: scale(0.95); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+@keyframes slideInWord {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
 /* =========================================================================
    Page banner (menu / about / contact headers)
    ========================================================================= */
 .page-banner {
   background-color: #1a1a1a;
   background-image: linear-gradient(135deg, #1a1a1a 0%, #0d0d0d 100%);
-  border-radius: 0 0 40px 40px;
+  border-radius: 40px;
   padding: 56px 32px;
   text-align: center;
 }

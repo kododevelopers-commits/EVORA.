@@ -74,7 +74,8 @@
     'storyEyebrow', 'storyTitle', 'storyEmphasis', 'storyDesc', 'storyPoints', 'storyBtn1Label', 'storyBtn1Href', 'storyBtn2Label', 'storyBtn2Href',
     'footerTagline', 'footerContactHeading', 'footerPhone', 'footerPhoneHref', 'footerAddress', 'footerFollowHeading', 'footerFbHref', 'footerIgHref',
     'footerHelpHeading', 'footerLinks', 'addFooterLink', 'footerPoweredText', 'footerPoweredHref', 'footerBottomLinks', 'addFooterBottomLink',
-    'saveChanges', 'changesVersion', 'changesError'
+    'saveChanges', 'changesVersion', 'changesError',
+    'analyticsTab', 'analyticsRefresh', 'analyticsCharts'
   ].forEach(function (id) { els[id] = document.getElementById(id); });
 
   // -------- Toast --------
@@ -1220,19 +1221,47 @@
   }
 
   function switchTab(which) {
-    if (!['orders', 'contacts', 'staff', 'products', 'changes'].includes(which) || (which === 'products' && !canEdit()) || (which === 'changes' && !canEdit())) return;
+    if (!['orders', 'contacts', 'staff', 'products', 'changes', 'analytics'].includes(which) || (which === 'products' && !canEdit()) || (which === 'changes' && !canEdit())) return;
     activeTab = which;
     document.querySelectorAll('.tab').forEach(function (tab) {
       var selected = tab.getAttribute('data-tab') === which;
       tab.classList.toggle('active', selected);
       tab.setAttribute('aria-pressed', String(selected));
     });
-    ['orders', 'contacts', 'staff', 'products', 'changes'].forEach(function (name) {
+    ['orders', 'contacts', 'staff', 'products', 'changes', 'analytics'].forEach(function (name) {
       document.getElementById('panel-' + name).style.display = which === name ? '' : 'none';
     });
     if (which === 'changes') loadSiteContent(true);
+    if (which === 'analytics') renderAnalytics();
   }
 
+  async function renderAnalytics() {
+    try {
+      var data = await api('/api/analytics');
+      var months = Object.keys(data).sort();
+      els.analyticsCharts.innerHTML = '';
+
+      var canvas = document.createElement('canvas');
+      canvas.height = 200;
+      els.analyticsCharts.appendChild(canvas);
+
+      // Simple text-based "chart" for demo
+      months.forEach(function (m) {
+        var row = document.createElement('div');
+        row.style.display = 'flex';
+        row.style.alignItems = 'center';
+        row.style.gap = '16px';
+        row.innerHTML = '<strong>' + m + '</strong>' +
+          '<span>Orders: ' + data[m].orders + '</span>' +
+          '<span>Visitors: ' + data[m].visitors + '</span>';
+        els.analyticsCharts.appendChild(row);
+      });
+    } catch (err) {
+      reportError(err);
+    }
+  }
+
+  els.analyticsRefresh.addEventListener('click', function () { renderAnalytics(); });
   els.statusFilter.addEventListener('change', renderOrders);
   els.searchInput.addEventListener('input', renderOrders);
   els.productSearch.addEventListener('input', renderProducts);

@@ -1328,6 +1328,27 @@ app.get('/api/contacts', requireAdmin, function (req, res) {
 // ---------------------------------------------------------------------------
 // Stats (admin) — basic numbers for the dashboard
 // ---------------------------------------------------------------------------
+app.get('/api/analytics', requireAdmin, async function (req, res) {
+  try {
+    const orders = await storage.read(ORDERS_KEY);
+    // Simple mock for visitor counts (not implemented yet, return orders for now)
+    const monthlyData = {};
+
+    orders.forEach(o => {
+      const d = new Date(o.receivedAt);
+      const m = d.getFullYear() + '-' + (d.getMonth() + 1);
+      if (!monthlyData[m]) monthlyData[m] = { orders: 0, visitors: 0 };
+      monthlyData[m].orders++;
+      // Mock visitors as orders * 15 for demo
+      monthlyData[m].visitors += 15;
+    });
+
+    res.json(monthlyData);
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to load analytics' });
+  }
+});
+
 app.get('/api/stats', requireAdmin, function (req, res) {
   Promise.all([storage.read(ORDERS_KEY), storage.read(CONTACTS_KEY)]).then(function (results) {
     const orders = results[0];

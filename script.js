@@ -27,15 +27,19 @@
         if (carouselTrack && carouselDots) {
           carouselTrack.innerHTML = '';
           carouselDots.innerHTML = '';
+          // Per-slide button label, customised to the image
+          var shopBtn = document.getElementById('carouselShopBtn');
           carouselData.forEach(function (slide, i) {
             var slideDiv = document.createElement('div');
             slideDiv.className = 'carousel-slide active';
             slideDiv.setAttribute('data-slide', i);
+            slideDiv.setAttribute('data-btnlabel', slide.buttonLabel || 'Shop Now');
             slideDiv.innerHTML =
               '<div class="carousel-img">' +
                 '<img src="' + (slide.image || '') + '" alt="' + (slide.title || 'Deal') + '" loading="lazy">' +
               '</div>';
             carouselTrack.appendChild(slideDiv);
+            if (i === 0 && shopBtn) shopBtn.textContent = slide.buttonLabel || 'Shop Now';
 
             var dot = document.createElement('button');
             dot.type = 'button';
@@ -151,6 +155,9 @@
     dots.forEach(function (d) { d.classList.remove('active'); });
     slides[i].classList.add('active');
     dots[i].classList.add('active');
+    // Update the per-slide button label to match the active slide
+    var shopBtn = document.getElementById('carouselShopBtn');
+    if (shopBtn) shopBtn.textContent = slides[i].getAttribute('data-btnlabel') || 'Shop Now';
   }
 
   // Expose goToSlide globally for inline handlers
@@ -432,7 +439,7 @@
     var nextArrow = document.getElementById('carouselNext');
     var current = 0;
     var intervalId = null;
-    var AUTOPLAY_MS = 5000;
+    var AUTOPLAY_MS = 3000;
 
     slides.forEach(function (slide, i) {
       var dot = document.createElement('button');

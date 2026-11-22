@@ -564,14 +564,14 @@ button {
 }
 
 .icon-btn-img {
-  width: 22px;
-  height: 22px;
+  width: 16px;
+  height: 16px;
   transition: opacity 0.2s ease;
 }
 
 .cart-btn .icon-btn-img {
-  width: 22px !important;
-  height: 22px !important;
+  width: 16px !important;
+  height: 16px !important;
 }
 
 .categories-btn:hover {

@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "evora-dev",
+      "runtimeExecutable": "node",
+      "runtimeArgs": ["assets/server/server.js"],
+      "port": 3000
+    }
+  ]
+}

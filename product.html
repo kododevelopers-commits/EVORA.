@@ -67,7 +67,7 @@
       <div class="navbar-left">
         <div class="categories-wrap">
           <button class="categories-btn" id="categoriesBtn" aria-expanded="false" aria-haspopup="dialog" aria-controls="categoriesPanel">
-            <img src="assets/icon-menu.png" alt="" class="categories-icon">
+            <img class="categories-icon" src="assets/menu-svgrepo-com.svg" alt="" aria-hidden="true">
           </button>
         </div>
         <button class="icon-btn search-btn" id="navSearchBtn" type="button" aria-label="Search the shop" title="Search">
@@ -76,12 +76,44 @@
       </div>
       <a href="index.html" class="nav-logo"><img src="assets/evora-logo.svg" alt="Evora" class="nav-logo-img"></a>
       <div class="topbar-actions">
-        <a href="account.html" class="icon-btn account-btn" id="navAccountBtn" aria-label="Account" title="Account">
-          <svg class="account-btn-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-        </a>
+        <div class="account-wrap" id="accountWrap">
+          <button class="icon-btn account-btn" id="navAccountBtn" aria-label="Account" aria-haspopup="true" aria-expanded="false" aria-controls="accountDropdown">
+            <svg class="account-btn-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+          </button>
+          <div class="options-dropdown" id="accountDropdown" role="menu">
+            <div class="dropdown-header">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+              <span>Settings</span>
+            </div>
+            <div class="dropdown-divider"></div>
+            <div class="dropdown-section">
+              <span class="dropdown-label">Language</span>
+              <div class="dropdown-options" role="group" aria-label="Language">
+                <button class="dropdown-option" data-setting="language" data-value="en" role="menuitemradio" aria-checked="true">English</button>
+                <button class="dropdown-option" data-setting="language" data-value="ur" role="menuitemradio" aria-checked="false">اردو</button>
+              </div>
+            </div>
+            <div class="dropdown-section">
+              <span class="dropdown-label">Theme</span>
+              <div class="dropdown-options" role="group" aria-label="Theme">
+                <button class="dropdown-option" data-setting="theme" data-value="light" role="menuitemradio" aria-checked="true">Light</button>
+                <button class="dropdown-option" data-setting="theme" data-value="dark" role="menuitemradio" aria-checked="false">Dark</button>
+              </div>
+            </div>
+            <div class="dropdown-section">
+              <span class="dropdown-label">Currency</span>
+              <div class="dropdown-options" role="group" aria-label="Currency">
+                <button class="dropdown-option" data-setting="currency" data-value="PKR" role="menuitemradio" aria-checked="true">PKR (Rs.)</button>
+                <button class="dropdown-option" data-setting="currency" data-value="USD" role="menuitemradio" aria-checked="false">USD ($)</button>
+              </div>
+            </div>
+            <div class="dropdown-divider"></div>
+            <a href="account.html" class="options-link" role="menuitem">My Account</a>
+          </div>
+        </div>
         <div class="cart-wrap">
           <button class="icon-btn cart-btn" id="cartBtn" aria-label="View cart" aria-haspopup="dialog">
-            <img src="assets/cart-icon.png" alt="" class="icon-btn-img">
+            <img class="cart-btn-img" src="assets/shopping-cart-1135-svgrepo-com.svg" alt="" aria-hidden="true">
             <span class="badge">0</span>
           </button>
         </div>
@@ -189,6 +221,45 @@
       <path fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" d="M6 15l6-6 6 6"/>
     </svg>
   </button>
+
+  <!-- Cookie Consent Banner -->
+  <div class="cookie-banner" id="cookieBanner" role="dialog" aria-label="Cookie consent" aria-describedby="cookieDesc" hidden>
+    <div class="cookie-content">
+      <p id="cookieDesc">We use cookies to remember your cart, account, and preferences. By accepting, you agree to our use of essential and preference cookies.</p>
+      <div class="cookie-actions">
+        <button class="cookie-btn cookie-btn-primary" id="cookieAccept" type="button">Accept All</button>
+        <button class="cookie-btn cookie-btn-secondary" id="cookieReject" type="button">Reject All</button>
+        <button class="cookie-btn cookie-btn-tertiary" id="cookieCustomize" type="button">Customize</button>
+      </div>
+    </div>
+    <div class="cookie-customize" id="cookieCustomizePanel" hidden>
+      <h3>Cookie Preferences</h3>
+      <div class="cookie-category">
+        <label class="cookie-toggle">
+          <input type="checkbox" id="cookieEssential" checked disabled>
+          <span class="cookie-toggle-slider"></span>
+          <span class="cookie-toggle-label">Essential <span class="cookie-toggle-desc">Required for the site to function</span></span>
+        </label>
+      </div>
+      <div class="cookie-category">
+        <label class="cookie-toggle">
+          <input type="checkbox" id="cookiePreferences" checked>
+          <span class="cookie-toggle-slider"></span>
+          <span class="cookie-toggle-label">Preferences <span class="cookie-toggle-desc">Remember your language, theme, and currency settings</span></span>
+        </label>
+      </div>
+      <div class="cookie-category">
+        <label class="cookie-toggle">
+          <input type="checkbox" id="cookieCart" checked>
+          <span class="cookie-toggle-slider"></span>
+          <span class="cookie-toggle-label">Cart & Account <span class="cookie-toggle-desc">Remember your shopping cart and account session</span></span>
+        </label>
+      </div>
+      <div class="cookie-customize-actions">
+        <button class="cookie-btn cookie-btn-secondary" id="cookieSavePrefs" type="button">Save Preferences</button>
+      </div>
+    </div>
+  </div>
 
   <script src="catalog.js?v=30"></script>
   <script src="api-client.js?v=31"></script>

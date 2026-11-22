@@ -416,6 +416,90 @@
   }
   syncNavAccountButton();
 
+  // ---------- Account dropdown (Settings: Language, Theme, Currency) ----------
+  (function () {
+    var wrap = document.getElementById('accountWrap');
+    var btn = document.getElementById('navAccountBtn');
+    var dropdown = document.getElementById('accountDropdown');
+    if (!wrap || !btn || !dropdown) return;
+
+    // Load saved preferences from localStorage
+    var prefs = {};
+    try {
+      prefs = JSON.parse(localStorage.getItem('evora_prefs') || '{}');
+    } catch (e) {}
+
+    function applyPreferences() {
+      // Theme
+      var theme = prefs.theme || 'light';
+      document.documentElement.setAttribute('data-theme', theme);
+      updateRadioGroup('theme', theme);
+
+      // Currency
+      var currency = prefs.currency || 'PKR';
+      window.EVORA_API = window.EVORA_API || {};
+      window.EVORA_API.currency = currency;
+      updateRadioGroup('currency', currency);
+
+      // Language
+      var language = prefs.language || 'en';
+      document.documentElement.setAttribute('lang', language === 'ur' ? 'ur' : 'en');
+      updateRadioGroup('language', language);
+    }
+
+    function updateRadioGroup(setting, value) {
+      var options = dropdown.querySelectorAll('.dropdown-option[data-setting="' + setting + '"]');
+      options.forEach(function (opt) {
+        var checked = opt.getAttribute('data-value') === value;
+        opt.setAttribute('aria-checked', checked ? 'true' : 'false');
+      });
+    }
+
+    function savePreferences() {
+      localStorage.setItem('evora_prefs', JSON.stringify(prefs));
+    }
+
+    function toggleDropdown(force) {
+      var isOpen = dropdown.classList.toggle('open', force);
+      btn.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+    }
+
+    function closeDropdown() {
+      toggleDropdown(false);
+    }
+
+    btn.addEventListener('click', function (e) {
+      e.stopPropagation();
+      toggleDropdown(!dropdown.classList.contains('open'));
+    });
+
+    // Dropdown option clicks
+    dropdown.addEventListener('click', function (e) {
+      var option = e.target.closest('.dropdown-option');
+      if (!option) return;
+
+      var setting = option.getAttribute('data-setting');
+      var value = option.getAttribute('data-value');
+      prefs[setting] = value;
+      savePreferences();
+      applyPreferences();
+      closeDropdown();
+    });
+
+    // Click outside to close
+    document.addEventListener('click', function (e) {
+      if (!wrap.contains(e.target)) closeDropdown();
+    });
+
+    // Escape key to close
+    document.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape') closeDropdown();
+    });
+
+    // Initialize
+    applyPreferences();
+  })();
+
   // ---------- Deals / category slider ----------
   var track = document.getElementById('dealsTrack');
   var prevBtn = document.getElementById('dealsPrev');
@@ -1556,6 +1640,85 @@
     window.addEventListener('scroll', syncFloatingVisibility, { passive: true });
     syncFloatingVisibility();
   }
+
+  // ---------- Cookie Consent Banner ----------
+  (function () {
+    var banner = document.getElementById('cookieBanner');
+    var acceptBtn = document.getElementById('cookieAccept');
+    var rejectBtn = document.getElementById('cookieReject');
+    var customizeBtn = document.getElementById('cookieCustomize');
+    var savePrefsBtn = document.getElementById('cookieSavePrefs');
+    var customizePanel = document.getElementById('cookieCustomizePanel');
+    var essentialCheck = document.getElementById('cookieEssential');
+    var preferencesCheck = document.getElementById('cookiePreferences');
+    var cartCheck = document.getElementById('cookieCart');
+
+    // Check for existing consent
+    function hasConsent() {
+      var consent = localStorage.getItem('evora_consent');
+      return consent !== null;
+    }
+
+    // Get current consent preferences
+    function getConsent() {
+      var consent = localStorage.getItem('evora_consent');
+      if (!consent) return { essential: true, preferences: true, cart: true };
+      return JSON.parse(consent);
+    }
+
+    // Save consent preferences
+    function saveConsent(preferences) {
+      localStorage.setItem('evora_consent', JSON.stringify(preferences));
+    }
+
+    // Show banner if no consent exists
+    if (banner && !hasConsent()) {
+      banner.hidden = false;
+    }
+
+    // Accept All
+    if (acceptBtn) {
+      acceptBtn.addEventListener('click', function () {
+        saveConsent({ essential: true, preferences: true, cart: true });
+        if (banner) banner.hidden = true;
+      });
+    }
+
+    // Reject All
+    if (rejectBtn) {
+      rejectBtn.addEventListener('click', function () {
+        saveConsent({ essential: true, preferences: false, cart: false });
+        if (banner) banner.hidden = true;
+      });
+    }
+
+    // Toggle customize panel
+    if (customizeBtn) {
+      customizeBtn.addEventListener('click', function () {
+        if (customizePanel) {
+          customizePanel.hidden = !customizePanel.hidden;
+        }
+      });
+    }
+
+    // Save Preferences
+    if (savePrefsBtn) {
+      savePrefsBtn.addEventListener('click', function () {
+        var preferences = {
+          essential: essentialCheck.checked,
+          preferences: preferencesCheck.checked,
+          cart: cartCheck.checked
+        };
+        saveConsent(preferences);
+        if (customizePanel) {
+          customizePanel.hidden = true;
+        }
+        if (banner) {
+          banner.hidden = true;
+        }
+      });
+    }
+  })();
 
   });
 })();

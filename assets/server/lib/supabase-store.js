@@ -38,6 +38,14 @@ const COLLECTIONS = {
     key: function (s) { return s && s.email ? String(s.email).toLowerCase() : null; },
     toRow: staffToRow,
     fromRow: staffFromRow
+  },
+  visitors: {
+    table: 'visitors',
+    conflict: 'id',
+    order: 'ts.desc',
+    key: function (v) { return v && v.id ? String(v.id) : null; },
+    toRow: visitorToRow,
+    fromRow: visitorFromRow
   }
 };
 
@@ -183,6 +191,26 @@ function staffFromRow(r) {
     name: r.name || '',
     role: r.role || 'viewer',
     createdAt: r.created_at
+  };
+}
+
+function visitorToRow(v) {
+  return {
+    id: v.id || v.ts + '-' + Math.random().toString(36).slice(2, 9),
+    ts: v.ts || new Date().toISOString(),
+    day: v.day || '',
+    path: v.path || '',
+    referrer: v.referrer || ''
+  };
+}
+
+function visitorFromRow(r) {
+  return {
+    id: r.id,
+    ts: r.ts,
+    day: r.day,
+    path: r.path,
+    referrer: r.referrer
   };
 }
 

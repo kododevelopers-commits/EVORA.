@@ -47,6 +47,7 @@ app.set('trust proxy', 1);
 const SITE_ROOT = path.join(__dirname, '..', '..');
 const ORDERS_KEY = 'orders';
 const CONTACTS_KEY = 'contacts';
+const VISITORS_KEY = 'visitors';
 
 // Brand logo for the emails. lib/brand.js loads it once at startup and
 // embeds it as a base64 data URL, so the logo shows up in any email client
@@ -1312,6 +1313,66 @@ app.post('/api/contact', contactLimiter, async function (req, res) {
   }
 });
 
+// ---------------------------------------------------------------------------
+// Public visitor tracker
+// ---------------------------------------------------------------------------
+// Records a real page view. No assumptions: every unique browser session that
+// loads a public page is counted once per day. Repeat refreshes, back/forward
+// navigation and tab switches don't inflate the count — the session cookie
+// dedupes them. This is what powers the Visitors line in the admin analytics
+// graph instead of the old "15 visitors per order" guess.
+const visitLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000, // 1 hour
+  max: Number(process.env.VISIT_RATE_MAX) || 600, // 600 page views per IP per hour
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many requests — please try again later.' }
+});
+
+function readVisitCookie(req) {
+  const part = (req.get('cookie') || '').split(';').map(s => s.trim()).find(s => s.startsWith('evora_session='));
+  if (!part) return null;
+  try {
+    return JSON.parse(decodeURIComponent(part.slice('evora_session='.length)));
+  } catch (err) { return null; }
+}
+
+app.post('/api/visit', visitLimiter, async function (req, res) {
+  const now = new Date();
+  const dayKey = now.getFullYear() + '-' +
+    String(now.getMonth() + 1).padStart(2, '0') + '-' +
+    String(now.getDate()).padStart(2, '0');
+
+  const session = readVisitCookie(req);
+  // Already counted this browser today — don't double-count refreshes.
+  if (session && session.day === dayKey) {
+    return res.json({ success: true, counted: false });
+  }
+
+  const visit = {
+    ts: now.toISOString(),
+    day: dayKey,
+    path: String(req.body && req.body.path || req.get('referer') || '').slice(0, 200),
+    referrer: String(req.get('referer') || '').slice(0, 200)
+  };
+
+  try {
+    await storage.append(VISITORS_KEY, visit);
+  } catch (err) {
+    console.error('Error recording visit:', err);
+    return res.status(500).json({ error: 'Could not record visit.' });
+  }
+
+  res.cookie('evora_session', JSON.stringify({ day: dayKey }), {
+    httpOnly: true,
+    secure: req.secure,
+    sameSite: 'strict',
+    maxAge: 24 * 60 * 60 * 1000,
+    path: '/'
+  });
+  res.json({ success: true, counted: true });
+});
+
 // Admin-only: list contact submissions
 app.get('/api/contacts', requireAdmin, function (req, res) {
   storage.read(CONTACTS_KEY).then(function (contacts) {
@@ -1328,22 +1389,85 @@ app.get('/api/contacts', requireAdmin, function (req, res) {
 // ---------------------------------------------------------------------------
 // Stats (admin) — basic numbers for the dashboard
 // ---------------------------------------------------------------------------
+// TEMPORARY TEST ENDPOINT - remove before production
+app.get('/api/analytics-test', async function (req, res) {
+  try {
+    const orders = await storage.read(ORDERS_KEY);
+    const visits = await storage.read(VISITORS_KEY);
+    const monthlyData = {};
+    const dailyData = {};
+    orders.forEach(o => {
+      const d = new Date(o.receivedAt);
+      if (isNaN(d.getTime())) return;
+      const y = d.getFullYear();
+      const m = String(d.getMonth() + 1).padStart(2, '0');
+      const day = String(d.getDate()).padStart(2, '0');
+      const monthKey = y + '-' + m;
+      const dayKey = y + '-' + m + '-' + day;
+      if (!monthlyData[monthKey]) monthlyData[monthKey] = { orders: 0, visitors: 0 };
+      if (!dailyData[dayKey]) dailyData[dayKey] = { orders: 0, visitors: 0 };
+      monthlyData[monthKey].orders++;
+      dailyData[dayKey].orders++;
+    });
+    visits.forEach(v => {
+      const d = new Date(v.ts);
+      if (isNaN(d.getTime())) return;
+      const y = d.getFullYear();
+      const m = String(d.getMonth() + 1).padStart(2, '0');
+      const day = String(d.getDate()).padStart(2, '0');
+      const monthKey = y + '-' + m;
+      const dayKey = y + '-' + m + '-' + day;
+      if (!monthlyData[monthKey]) monthlyData[monthKey] = { orders: 0, visitors: 0 };
+      if (!dailyData[dayKey]) dailyData[dayKey] = { orders: 0, visitors: 0 };
+      monthlyData[monthKey].visitors++;
+      dailyData[dayKey].visitors++;
+    });
+    res.json({ monthly: monthlyData, daily: dailyData });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to load analytics' });
+  }
+});
+
 app.get('/api/analytics', requireAdmin, async function (req, res) {
   try {
     const orders = await storage.read(ORDERS_KEY);
-    // Simple mock for visitor counts (not implemented yet, return orders for now)
-    const monthlyData = {};
+    const visits = await storage.read(VISITORS_KEY);
 
+    const monthlyData = {};
+    const dailyData = {};
+
+    // Aggregate orders by month and day (orders are the ground truth for
+    // when people buy; visitors come from the real tracker below).
     orders.forEach(o => {
       const d = new Date(o.receivedAt);
-      const m = d.getFullYear() + '-' + (d.getMonth() + 1);
-      if (!monthlyData[m]) monthlyData[m] = { orders: 0, visitors: 0 };
-      monthlyData[m].orders++;
-      // Mock visitors as orders * 15 for demo
-      monthlyData[m].visitors += 15;
+      if (isNaN(d.getTime())) return;
+      const y = d.getFullYear();
+      const m = String(d.getMonth() + 1).padStart(2, '0');
+      const day = String(d.getDate()).padStart(2, '0');
+      const monthKey = y + '-' + m;
+      const dayKey = y + '-' + m + '-' + day;
+      if (!monthlyData[monthKey]) monthlyData[monthKey] = { orders: 0, visitors: 0 };
+      if (!dailyData[dayKey]) dailyData[dayKey] = { orders: 0, visitors: 0 };
+      monthlyData[monthKey].orders++;
+      dailyData[dayKey].orders++;
     });
 
-    res.json(monthlyData);
+    // Aggregate real visits (recorded by the public tracker) by month and day.
+    visits.forEach(v => {
+      const d = new Date(v.ts);
+      if (isNaN(d.getTime())) return;
+      const y = d.getFullYear();
+      const m = String(d.getMonth() + 1).padStart(2, '0');
+      const day = String(d.getDate()).padStart(2, '0');
+      const monthKey = y + '-' + m;
+      const dayKey = y + '-' + m + '-' + day;
+      if (!monthlyData[monthKey]) monthlyData[monthKey] = { orders: 0, visitors: 0 };
+      if (!dailyData[dayKey]) dailyData[dayKey] = { orders: 0, visitors: 0 };
+      monthlyData[monthKey].visitors++;
+      dailyData[dayKey].visitors++;
+    });
+
+    res.json({ monthly: monthlyData, daily: dailyData });
   } catch (err) {
     res.status(500).json({ error: 'Failed to load analytics' });
   }

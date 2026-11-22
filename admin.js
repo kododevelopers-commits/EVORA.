@@ -1239,8 +1239,17 @@
     try {
       var data = await api('/api/analytics');
 
+      // Use daily data from the new API response (keys: yyyy-MM-dd, values: {orders, visitors})
+      var dailyData = data && data.daily ? data.daily : {};
+      var monthlyData = data && data.monthly ? data.monthly : {};
+
+      // Build year list from daily keys
       var yearSet = {};
-      Object.keys(data).forEach(function (key) {
+      Object.keys(dailyData).forEach(function (key) {
+        var parts = key.split('-');
+        if (parts[0]) yearSet[parts[0]] = true;
+      });
+      Object.keys(monthlyData).forEach(function (key) {
         var parts = key.split('-');
         if (parts[0]) yearSet[parts[0]] = true;
       });
@@ -1262,18 +1271,41 @@
       els.analyticsCharts.innerHTML = '';
       els.analyticsCharts.style.position = 'relative';
 
+      // Build sorted list of all days in the selected year that have data
       var monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-      var fullYearData = monthNames.map(function (name, idx) {
-        var monthNum = idx + 1;
-        var key = selYear + '-' + monthNum;
-        var d = data[key] || { orders: 0, visitors: 0 };
-        return { name: name, key: key, orders: d.orders || 0, visitors: d.visitors || 0 };
+      var dayKeys = Object.keys(dailyData).filter(function (k) { return k.startsWith(selYear + '-'); }).sort();
+      if (dayKeys.length === 0) {
+        // Fallback: create empty days for the whole year if no data
+        var daysInYear = new Date(selYear, 11, 31).getDate();
+        dayKeys = [];
+        for (var d = 1; d <= daysInYear; d++) {
+          var m = new Date(selYear, 0, d).getMonth() + 1;
+          var day = d;
+          dayKeys.push(selYear + '-' + String(m).padStart(2, '0') + '-' + String(day).padStart(2, '0'));
+        }
+      }
+
+      // Map each day to its data point
+      var points = dayKeys.map(function (key) {
+        var d = dailyData[key] || { orders: 0, visitors: 0 };
+        var parts = key.split('-');
+        var monthIdx = parseInt(parts[1], 10) - 1;
+        var dayNum = parseInt(parts[2], 10);
+        return {
+          key: key,
+          date: new Date(selYear, monthIdx, dayNum),
+          day: dayNum,
+          month: monthNames[monthIdx],
+          monthIdx: monthIdx,
+          orders: d.orders || 0,
+          visitors: d.visitors || 0
+        };
       });
 
       var canvas = document.createElement('canvas');
       var dpr = window.devicePixelRatio || 1;
-      var displayW = 720;
-      var displayH = 340;
+      var displayW = 900;
+      var displayH = 360;
       canvas.width = displayW * dpr;
       canvas.height = displayH * dpr;
       canvas.style.width = '100%';
@@ -1286,9 +1318,9 @@
       ctx.scale(dpr, dpr);
 
       var maxVal = 1;
-      fullYearData.forEach(function (d) {
-        if (d.orders > maxVal) maxVal = d.orders;
-        if (d.visitors > maxVal) maxVal = d.visitors;
+      points.forEach(function (p) {
+        if (p.orders > maxVal) maxVal = p.orders;
+        if (p.visitors > maxVal) maxVal = p.visitors;
       });
       maxVal = Math.ceil(maxVal * 1.15) || 10;
 
@@ -1300,7 +1332,15 @@
       var h = displayH;
       var plotW = w - padL - padR;
       var plotH = h - padB - padT;
-      var stepX = plotW / 11;
+
+      // X scale: map each day to an X position across the year
+      var firstDay = new Date(selYear, 0, 1);
+      var lastDay = new Date(selYear, 11, 31);
+      var totalDays = Math.ceil((lastDay - firstDay) / 86400000) + 1;
+
+      function xForDayOfYear(dayOfYear) {
+        return padL + (dayOfYear / (totalDays - 1)) * plotW;
+      }
 
       var tip = document.createElement('div');
       tip.style.position = 'absolute';
@@ -1321,6 +1361,7 @@
         ctx.fillStyle = '#111';
         ctx.fillRect(0, 0, w, h);
 
+        // Y grid & labels
         ctx.strokeStyle = '#222';
         ctx.lineWidth = 1;
         ctx.fillStyle = '#888';
@@ -1338,6 +1379,7 @@
           ctx.fillText(String(val), padL - 8, y);
         }
 
+        // Axes
         ctx.strokeStyle = '#444';
         ctx.lineWidth = 1.5;
         ctx.beginPath();
@@ -1346,23 +1388,36 @@
         ctx.lineTo(padL + plotW, padT + plotH);
         ctx.stroke();
 
-        fullYearData.forEach(function (d, i) {
-          var x = padL + stepX * i;
-          ctx.fillStyle = '#aaa';
-          ctx.font = '11px sans-serif';
-          ctx.textAlign = 'center';
-          ctx.textBaseline = 'top';
-          ctx.fillText(d.name, x, padT + plotH + 8);
-        });
+        // Month labels on X axis
+        ctx.fillStyle = '#aaa';
+        ctx.font = '11px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'top';
+        for (var m = 0; m < 12; m++) {
+          var firstOfMonth = new Date(selYear, m, 1);
+          var dayOfYear = Math.ceil((firstOfMonth - firstDay) / 86400000);
+          var x = xForDayOfYear(dayOfYear);
+          ctx.fillText(monthNames[m], x, padT + plotH + 8);
+        }
 
-        function getPoints(key) {
-          return fullYearData.map(function (d, i) {
-            return { x: padL + stepX * i, y: padT + plotH - (d[key] / maxVal) * plotH, val: d[key] };
+        // Build line points for visitors and orders
+        function getLinePoints(key) {
+          return points.map(function (p) {
+            var dayOfYear = Math.ceil((p.date - firstDay) / 86400000);
+            return {
+              x: xForDayOfYear(dayOfYear),
+              y: padT + plotH - (p[key] / maxVal) * plotH,
+              val: p[key],
+              p: p
+            };
           });
         }
 
         function drawLayer(key, color, fill) {
-          var pts = getPoints(key);
+          var pts = getLinePoints(key);
+          if (pts.length < 2) return;
+
+          // Area fill
           ctx.beginPath();
           ctx.moveTo(pts[0].x, padT + plotH);
           pts.forEach(function(p) { ctx.lineTo(p.x, p.y); });
@@ -1371,27 +1426,32 @@
           ctx.fillStyle = fill;
           ctx.fill();
 
+          // Line
           ctx.beginPath();
           ctx.moveTo(pts[0].x, pts[0].y);
           pts.forEach(function(p) { ctx.lineTo(p.x, p.y); });
           ctx.strokeStyle = color;
-          ctx.lineWidth = 2.5;
+          ctx.lineWidth = 2;
           ctx.stroke();
 
+          // Data point dots
           pts.forEach(function(p) {
-            ctx.beginPath();
-            ctx.arc(p.x, p.y, 4, 0, Math.PI*2);
-            ctx.fillStyle = color;
-            ctx.fill();
-            ctx.strokeStyle = '#111';
-            ctx.lineWidth = 1.5;
-            ctx.stroke();
+            if (p.val > 0) {
+              ctx.beginPath();
+              ctx.arc(p.x, p.y, 3.5, 0, Math.PI*2);
+              ctx.fillStyle = color;
+              ctx.fill();
+              ctx.strokeStyle = '#111';
+              ctx.lineWidth = 1.5;
+              ctx.stroke();
+            }
           });
         }
 
-        drawLayer('visitors', '#4a90e2', 'rgba(74, 144, 226, 0.12)');
-        drawLayer('orders', '#c8a24a', 'rgba(200, 162, 74, 0.15)');
+        drawLayer('visitors', '#4a90e2', 'rgba(74, 144, 226, 0.10)');
+        drawLayer('orders', '#c8a24a', 'rgba(200, 162, 74, 0.12)');
 
+        // Legend
         ctx.font = '12px sans-serif';
         ctx.textAlign = 'left';
         ctx.textBaseline = 'middle';
@@ -1406,11 +1466,12 @@
         ctx.fillStyle = '#888';
         ctx.font = '11px sans-serif';
         ctx.textAlign = 'center';
-        ctx.fillText('Month (' + selYear + ')', padL + plotW / 2, h - 10);
+        ctx.fillText('Days in ' + selYear, padL + plotW / 2, h - 10);
       }
 
       draw();
 
+      // Hover interaction - find nearest point
       canvas.addEventListener('mousemove', function (e) {
         var rect = canvas.getBoundingClientRect();
         var mx = (e.clientX - rect.left) * (displayW / rect.width);
@@ -1422,10 +1483,28 @@
           return;
         }
 
-        var idx = Math.round((mx - padL) / stepX);
-        if (idx < 0) idx = 0; if (idx > 11) idx = 11;
-        var d = fullYearData[idx];
-        var px = padL + stepX * idx;
+        // Find nearest data point by X distance
+        var bestIdx = -1;
+        var bestDist = Infinity;
+        points.forEach(function (p, i) {
+          var dayOfYear = Math.ceil((p.date - firstDay) / 86400000);
+          var px = xForDayOfYear(dayOfYear);
+          var dist = Math.abs(mx - px);
+          if (dist < bestDist) {
+            bestDist = dist;
+            bestIdx = i;
+          }
+        });
+
+        if (bestIdx === -1 || bestDist > 30) {
+          tip.style.display = 'none';
+          draw();
+          return;
+        }
+
+        var p = points[bestIdx];
+        var dayOfYear = Math.ceil((p.date - firstDay) / 86400000);
+        var px = xForDayOfYear(dayOfYear);
 
         draw();
         ctx.setLineDash([5, 5]);
@@ -1439,9 +1518,9 @@
         tip.style.display = 'block';
         tip.style.left = (px + 10) + 'px';
         tip.style.top = (my - 20) + 'px';
-        tip.innerHTML = '<strong>' + d.name + ' ' + selYear + '</strong><br>' +
-          '<span style="color:#c8a24a">Orders: ' + d.orders + '</span><br>' +
-          '<span style="color:#4a90e2">Visitors: ' + d.visitors + '</span>';
+        tip.innerHTML = '<strong>' + p.day + ' ' + p.month + ' ' + selYear + '</strong><br>' +
+          '<span style="color:#c8a24a">Orders: ' + p.orders + '</span><br>' +
+          '<span style="color:#4a90e2">Visitors: ' + p.visitors + '</span>';
       });
 
       canvas.addEventListener('mouseleave', function () {

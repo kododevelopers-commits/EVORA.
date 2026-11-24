@@ -15,12 +15,38 @@
 // ============================================================================
 
 const supabase = require('./supabase-store');
+const fs = require('fs');
+const path = require('path');
 
 const KEYS = {
   CAROUSEL: 'carousel',
   OUR_STORY: 'our-story',
   FOOTER: 'footer'
 };
+
+function loadFallback() {
+  try {
+    const file = path.join(__dirname, 'site-content.json');
+    const content = fs.readFileSync(file, 'utf8');
+    return JSON.parse(content);
+  } catch (_) {
+    return null;
+  }
+}
+
+function fallbackSnapshot() {
+  const fb = loadFallback();
+  if (!fb) return [];
+  return Object.values(fb).map(function (item) {
+    return {
+      id: item.id,
+      key: item.key,
+      data: item.data,
+      version: item.version,
+      updated_at: item.updated_at
+    };
+  });
+}
 
 function fail(status, message) {
   const error = new Error(message);
@@ -59,28 +85,36 @@ async function get(key) {
 }
 
 async function list() {
-  const rows = await supabase.request('/site_content?select=*&order=key.asc', {
-    method: 'GET'
-  });
-  const text = rows.text;
-  let rowsParsed;
-  try {
-    rowsParsed = JSON.parse(text);
-  } catch (_) {
-    throw fail(502, 'Site content service is unavailable.');
+  if (supabase.isConfigured()) {
+    try {
+      const rows = await supabase.request('/site_content?select=*&order=key.asc', {
+        method: 'GET'
+      });
+      const text = rows.text;
+      let rowsParsed;
+      try {
+        rowsParsed = JSON.parse(text);
+      } catch (_) {
+        throw fail(502, 'Site content service is unavailable.');
+      }
+      if (!Array.isArray(rowsParsed)) {
+        throw fail(502, 'Site content service is unavailable.');
+      }
+      return rowsParsed.map(function (row) {
+        return {
+          id: row.id,
+          key: row.key,
+          data: row.data,
+          version: row.version,
+          updated_at: row.updated_at
+        };
+      });
+    } catch (err) {
+      console.error('[site-content] Supabase unavailable, serving site-content.json fallback:', err.message);
+      return fallbackSnapshot();
+    }
   }
-  if (!Array.isArray(rowsParsed)) {
-    throw fail(502, 'Site content service is unavailable.');
-  }
-  return rowsParsed.map(function (row) {
-    return {
-      id: row.id,
-      key: row.key,
-      data: row.data,
-      version: row.version,
-      updated_at: row.updated_at
-    };
-  });
+  return fallbackSnapshot();
 }
 
 async function create(data) {

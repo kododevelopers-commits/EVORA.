@@ -136,12 +136,29 @@ function toItem(row) {
   return Object.assign({}, row.data, { id: row.id, version: row.version });
 }
 
-async function list() {
-  const rows = await requestRows('/products?select=*&order=position.asc');
+function catalogSnapshot() {
   return {
     categories: catalog.categories.map(function (category) { return Object.assign({}, category); }),
-    items: rows.map(toItem)
+    items: catalog.items.filter(function (item) { return item.available !== false; })
+      .map(function (item) { return Object.assign({}, item, { version: 1 }); })
   };
+}
+
+async function list() {
+  // Serve the bundled catalog when Supabase is unconfigured or unreachable so
+  // the storefront never hangs on a 503 from the menu endpoint.
+  if (supabase.isConfigured()) {
+    try {
+      const rows = await requestRows('/products?select=*&order=position.asc');
+      return {
+        categories: catalog.categories.map(function (category) { return Object.assign({}, category); }),
+        items: rows.map(toItem)
+      };
+    } catch (err) {
+      console.error('[products] Supabase unavailable, serving catalog.js fallback:', err.message);
+    }
+  }
+  return catalogSnapshot();
 }
 
 async function update(id, input) {
